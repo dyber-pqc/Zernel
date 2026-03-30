@@ -1,0 +1,17 @@
+Zernel Enterprise License
+
+Copyright (C) 2026 Dyber, Inc. All rights reserved.
+
+This software and associated documentation files (the "Software") are the
+proprietary property of Dyber, Inc. Use, reproduction, modification, and
+distribution of this Software require a valid enterprise license agreement
+with Dyber, Inc.
+
+The following components are covered by this license:
+- zernel-cli (Zernel CLI IDE)
+- ZQL query language
+- Enterprise dashboard
+- Multi-tenant scheduler features
+- Shared experiment server
+
+For licensing inquiries, contact: licensing@dyber.io

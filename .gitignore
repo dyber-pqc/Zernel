@@ -1,0 +1,47 @@
+# Rust
+/target/
+**/target/
+Cargo.lock
+*.swp
+*.swo
+
+# BPF build artifacts
+*.bpf.o
+*.skel.rs
+vmlinux.h
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+.venv/
+venv/
+
+# Linux kernel build
+distro/kernel/build/
+*.ko
+*.o
+*.mod
+*.mod.c
+modules.order
+Module.symvers
+
+# ISO artifacts
+distro/iso/*.iso
+distro/iso/build/
+
+# IDE
+.idea/
+.vscode/
+*.sublime-*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local

@@ -1,0 +1,39 @@
+# Zernel Base Package List — Debian stable
+# Copyright (C) 2026 Dyber, Inc.
+
+# Core system
+linux-image-amd64
+firmware-linux
+systemd
+grub-efi-amd64
+
+# Build tools
+build-essential
+clang
+llvm
+libelf-dev
+libbpf-dev
+bpftool
+
+# Networking
+iproute2
+rdma-core
+infiniband-diags
+openssh-server
+
+# Python ML stack
+python3.12
+python3-pip
+python3-venv
+
+# Container runtime
+containerd
+runc
+
+# Utilities
+curl
+wget
+git
+htop
+tmux
+nvtop

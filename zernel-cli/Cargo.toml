@@ -1,0 +1,27 @@
+[package]
+name = "zernel-cli"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license = "LicenseRef-Zernel-Enterprise"
+description = "Zernel CLI IDE — terminal-native ML developer environment"
+
+[[bin]]
+name = "zernel"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+clap = { version = "4", features = ["derive"] }
+ratatui = "0.28"
+crossterm = "0.28"
+rusqlite = { version = "0.31", features = ["bundled"] }
+nom = "7"
+reqwest = { version = "0.12", features = ["json"] }
+tokio-tungstenite = "0.24"
+chrono = { version = "0.4", features = ["serde"] }

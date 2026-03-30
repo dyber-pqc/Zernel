@@ -1,0 +1,25 @@
+# Zernel NVIDIA Stack — Pre-installed GPU packages
+# Copyright (C) 2026 Dyber, Inc.
+
+# NVIDIA open kernel modules (>=515.43.04)
+nvidia-open-kernel-modules
+
+# CUDA Toolkit 12.x
+cuda-toolkit-12-6
+
+# cuDNN 9
+libcudnn9
+libcudnn9-dev
+
+# TensorRT
+tensorrt
+
+# NCCL — multi-GPU collective communications
+libnccl2
+libnccl-dev
+
+# NVIDIA Container Toolkit (Docker/containerd GPU support)
+nvidia-container-toolkit
+
+# Fabric Manager (NVSwitch systems)
+nvidia-fabricmanager
