@@ -1,17 +1,8 @@
-<p align="center">
-  <h1 align="center">Zernel</h1>
-  <p align="center"><strong>The AI-Native Linux Operating System</strong></p>
-  <p align="center">
-    The first operating system where the kernel itself understands machine learning.<br>
-    <strong>Faster training. Lower energy costs. Zero code changes.</strong>
-  </p>
-  <p align="center">
-    <a href="https://github.com/dyber-pqc/Zernel/actions"><img src="https://github.com/dyber-pqc/Zernel/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-    <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--2.0-blue.svg" alt="License: GPL-2.0"></a>
-    <a href="https://www.rust-lang.org/"><img src="https://img.shields.io/badge/rust-1.75%2B-orange.svg" alt="Rust 1.75+"></a>
-    <a href="https://kernel.org/"><img src="https://img.shields.io/badge/linux-6.12%2B-yellow.svg" alt="Linux 6.12+"></a>
-  </p>
-</p>
+# Zernel — Technical Reference
+
+> Complete technical specification for the Zernel AI-Native Linux OS.
+> For the product overview, see [README.md](../README.md).
+> Copyright (C) 2026 Dyber, Inc.
 
 ---
 
@@ -282,7 +273,6 @@ bash scripts/quickstart-wsl.sh
 
 | Document | Description |
 |----------|-------------|
-| [Technical Reference](docs/technical-reference.md) | Complete technical spec with all 40+ commands |
 | [Architecture](docs/architecture.md) | System design, data flow, crate dependencies |
 | [Installation](docs/installation.md) | Build from source, hardware requirements, distro install |
 | [Scheduler](docs/scheduler.md) | Phase detection, NUMA, multi-tenant, configuration |

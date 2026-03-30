@@ -206,9 +206,9 @@ chroot "$MOUNT" systemctl enable ollama.service 2>/dev/null || true
 # Desktop profile: install GNOME extension
 if [ "$PROFILE" = "desktop" ]; then
     echo "  Installing GNOME GPU indicator extension..."
-    EXTENSION_DIR="$MOUNT/usr/share/gnome-shell/extensions/zernel-gpu-indicator@dyber.io"
+    EXTENSION_DIR="$MOUNT/usr/share/gnome-shell/extensions/zernel-gpu-indicator@dyber.org"
     mkdir -p "$EXTENSION_DIR"
-    cp -r /tmp/zernel-gnome/zernel-gpu-indicator@dyber.io/* "$EXTENSION_DIR/" 2>/dev/null || true
+    cp -r /tmp/zernel-gnome/zernel-gpu-indicator@dyber.org/* "$EXTENSION_DIR/" 2>/dev/null || true
     cp /tmp/zernel-gnome/overrides/01-zernel.gschema.override "$MOUNT/usr/share/glib-2.0/schemas/" 2>/dev/null || true
     chroot "$MOUNT" glib-compile-schemas /usr/share/glib-2.0/schemas/ 2>/dev/null || true
 fi

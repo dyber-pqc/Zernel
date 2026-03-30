@@ -147,7 +147,7 @@ cp "$REPO_ROOT/distro/systemd/ollama.service" config/includes.chroot/lib/systemd
 if [ "$PROFILE" = "desktop" ]; then
     echo "  Adding GNOME extension and branding..."
     mkdir -p config/includes.chroot/tmp/zernel-gnome
-    cp -r "$REPO_ROOT/distro/gnome/zernel-gpu-indicator@dyber.io" config/includes.chroot/tmp/zernel-gnome/
+    cp -r "$REPO_ROOT/distro/gnome/zernel-gpu-indicator@dyber.org" config/includes.chroot/tmp/zernel-gnome/
     cp -r "$REPO_ROOT/distro/gnome/overrides" config/includes.chroot/tmp/zernel-gnome/
     cp "$REPO_ROOT/distro/iso/hooks/03-gnome-setup.hook.chroot" config/hooks/live/
     chmod +x config/hooks/live/03-gnome-setup.hook.chroot

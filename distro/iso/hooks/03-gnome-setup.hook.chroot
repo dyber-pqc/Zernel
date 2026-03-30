@@ -9,10 +9,10 @@ set -e
 echo "Zernel: Configuring GNOME desktop..."
 
 # Install GNOME extension
-EXTENSION_DIR="/usr/share/gnome-shell/extensions/zernel-gpu-indicator@dyber.io"
-if [ -d "/tmp/zernel-gnome/zernel-gpu-indicator@dyber.io" ]; then
+EXTENSION_DIR="/usr/share/gnome-shell/extensions/zernel-gpu-indicator@dyber.org"
+if [ -d "/tmp/zernel-gnome/zernel-gpu-indicator@dyber.org" ]; then
     mkdir -p "$EXTENSION_DIR"
-    cp -r /tmp/zernel-gnome/zernel-gpu-indicator@dyber.io/* "$EXTENSION_DIR/"
+    cp -r /tmp/zernel-gnome/zernel-gpu-indicator@dyber.org/* "$EXTENSION_DIR/"
     echo "  Installed Zernel GPU indicator extension"
 fi
 

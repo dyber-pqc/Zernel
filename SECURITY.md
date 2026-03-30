@@ -12,7 +12,7 @@
 
 Instead, please report security issues by emailing:
 
-**security@dyber.io**
+**security@dyber.org**
 
 Include:
 - Description of the vulnerability
