@@ -26,12 +26,21 @@ pub enum ModelCommands {
     Deploy {
         /// Model name:tag
         model: String,
-        /// Deployment target
+        /// Deployment target (local, docker, sagemaker)
         #[arg(long, default_value = "local")]
         target: String,
         /// Port for inference server
         #[arg(long, default_value = "8080")]
         port: u16,
+        /// Docker registry to push to (for --target docker)
+        #[arg(long)]
+        registry: Option<String>,
+        /// AWS region (for --target sagemaker)
+        #[arg(long, default_value = "us-east-1")]
+        region: String,
+        /// SageMaker instance type
+        #[arg(long, default_value = "ml.g5.xlarge")]
+        instance_type: String,
     },
 }
 
@@ -215,6 +224,9 @@ pub async fn run(cmd: ModelCommands) -> Result<()> {
             model,
             target,
             port,
+            registry: docker_registry,
+            region,
+            instance_type,
         } => {
             let (name, tag) = model.split_once(':').unwrap_or((&model, "latest"));
 
@@ -280,9 +292,158 @@ pub async fn run(cmd: ModelCommands) -> Result<()> {
                         anyhow::bail!("vLLM exited with code {}", status.code().unwrap_or(-1));
                     }
                 }
+                "docker" => {
+                    println!();
+
+                    // Generate Dockerfile
+                    let dockerfile_content = format!(
+                        "FROM vllm/vllm-openai:latest\n\
+                         COPY . /model\n\
+                         EXPOSE {port}\n\
+                         ENTRYPOINT [\"python3\", \"-m\", \"vllm.entrypoints.openai.api_server\", \
+                         \"--model\", \"/model\", \"--port\", \"{port}\"]\n"
+                    );
+
+                    let dockerfile_path = model_path.join("Dockerfile.zernel");
+                    std::fs::write(&dockerfile_path, &dockerfile_content)?;
+                    println!("  Generated: {}", dockerfile_path.display());
+
+                    let image_tag = format!("zernel-{name}:{tag}");
+                    println!("  Building Docker image: {image_tag}");
+
+                    let build_status = std::process::Command::new("docker")
+                        .args(["build", "-t", &image_tag, "-f"])
+                        .arg(&dockerfile_path)
+                        .arg(&model_path)
+                        .status()?;
+
+                    if !build_status.success() {
+                        anyhow::bail!("docker build failed");
+                    }
+
+                    println!("  Image built: {image_tag}");
+
+                    if let Some(ref reg) = docker_registry {
+                        let remote_tag = format!("{reg}/{image_tag}");
+                        println!("  Pushing to {remote_tag}...");
+
+                        std::process::Command::new("docker")
+                            .args(["tag", &image_tag, &remote_tag])
+                            .status()?;
+
+                        let push_status = std::process::Command::new("docker")
+                            .args(["push", &remote_tag])
+                            .status()?;
+
+                        if push_status.success() {
+                            println!("  Pushed: {remote_tag}");
+                        } else {
+                            anyhow::bail!("docker push failed");
+                        }
+                    }
+
+                    println!();
+                    println!("Run locally: docker run --gpus all -p {port}:{port} {image_tag}");
+                }
+
+                "sagemaker" => {
+                    println!();
+                    println!("  Region:   {region}");
+                    println!("  Instance: {instance_type}");
+
+                    // Check AWS CLI
+                    let aws_check = std::process::Command::new("aws")
+                        .args(["sts", "get-caller-identity"])
+                        .output();
+
+                    match aws_check {
+                        Ok(output) if output.status.success() => {
+                            let identity = String::from_utf8_lossy(&output.stdout);
+                            println!("  AWS:      authenticated");
+                            let _ = identity;
+                        }
+                        _ => {
+                            println!();
+                            println!("  AWS CLI not configured. Run: aws configure");
+                            return Ok(());
+                        }
+                    }
+
+                    let s3_path = format!("s3://zernel-models/{name}/{tag}/");
+                    println!("  Uploading to {s3_path}...");
+
+                    let sync_status = std::process::Command::new("aws")
+                        .args([
+                            "s3",
+                            "sync",
+                            &model_path.to_string_lossy(),
+                            &s3_path,
+                            "--region",
+                            &region,
+                        ])
+                        .status()?;
+
+                    if !sync_status.success() {
+                        anyhow::bail!("aws s3 sync failed");
+                    }
+
+                    let sm_model_name = format!("zernel-{name}-{tag}");
+
+                    println!("  Creating SageMaker model: {sm_model_name}");
+                    let create_status = std::process::Command::new("aws")
+                        .args([
+                            "sagemaker", "create-model",
+                            "--model-name", &sm_model_name,
+                            "--primary-container",
+                            &format!("Image=763104351884.dkr.ecr.{region}.amazonaws.com/huggingface-pytorch-inference:2.1.0-transformers4.37.0-gpu-py310-cu118-ubuntu20.04,ModelDataUrl={s3_path}"),
+                            "--execution-role-arn", "arn:aws:iam::role/SageMakerExecutionRole",
+                            "--region", &region,
+                        ])
+                        .status()?;
+
+                    if !create_status.success() {
+                        println!("  SageMaker model creation failed.");
+                        println!("  You may need to configure the IAM role and container image.");
+                        println!(
+                            "  Manual: aws sagemaker create-model --model-name {sm_model_name} ..."
+                        );
+                        return Ok(());
+                    }
+
+                    println!("  Creating endpoint config...");
+                    let _ = std::process::Command::new("aws")
+                        .args([
+                            "sagemaker", "create-endpoint-config",
+                            "--endpoint-config-name", &format!("{sm_model_name}-config"),
+                            "--production-variants",
+                            &format!("VariantName=default,ModelName={sm_model_name},InstanceType={instance_type},InitialInstanceCount=1"),
+                            "--region", &region,
+                        ])
+                        .status();
+
+                    println!("  Creating endpoint...");
+                    let _ = std::process::Command::new("aws")
+                        .args([
+                            "sagemaker",
+                            "create-endpoint",
+                            "--endpoint-name",
+                            &sm_model_name,
+                            "--endpoint-config-name",
+                            &format!("{sm_model_name}-config"),
+                            "--region",
+                            &region,
+                        ])
+                        .status();
+
+                    println!();
+                    println!("  Endpoint: {sm_model_name}");
+                    println!("  Check status: aws sagemaker describe-endpoint --endpoint-name {sm_model_name} --region {region}");
+                }
+
                 other => {
                     println!();
-                    println!("Deployment target '{other}' not yet supported. Available: local");
+                    println!("Unknown target: '{other}'");
+                    println!("Available: local, docker, sagemaker");
                 }
             }
         }

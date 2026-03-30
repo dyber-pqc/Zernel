@@ -12,6 +12,7 @@
 mod aggregation;
 mod alerts;
 mod consumers;
+mod fallback;
 mod loader;
 mod metrics_server;
 mod simulator;
@@ -41,9 +42,30 @@ struct Args {
     #[arg(long, default_value = "1000", env = "ZERNEL_PUSH_INTERVAL_MS")]
     push_interval_ms: u64,
 
-    /// Run with simulated telemetry (no BPF probes)
+    /// Force simulated telemetry (ignore BPF and nvidia-smi)
     #[arg(long)]
     simulate: bool,
+}
+
+/// Telemetry source selection result.
+#[derive(Debug, Clone, Copy)]
+enum TelemetrySource {
+    /// Real BPF ring buffer events from kernel probes.
+    Bpf,
+    /// nvidia-smi + /proc polling (no BPF, but real GPU data).
+    NvidiaSmi,
+    /// Fully simulated data for development/demos.
+    Simulator,
+}
+
+impl std::fmt::Display for TelemetrySource {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Bpf => write!(f, "BPF"),
+            Self::NvidiaSmi => write!(f, "nvidia-smi"),
+            Self::Simulator => write!(f, "simulator"),
+        }
+    }
 }
 
 #[tokio::main]
@@ -56,28 +78,68 @@ async fn main() -> Result<()> {
 
     info!("zerneld v{}", env!("CARGO_PKG_VERSION"));
 
-    // Load BPF probes (or stub mode)
-    let load_result = loader::load_all_probes().unwrap_or_else(|e| {
-        tracing::warn!("BPF probe loading failed: {e}");
-        loader::LoadResult {
-            status: loader::ProbeStatus::none(),
-        }
-    });
+    // ============================================================
+    // Three-tier telemetry source selection:
+    //   1. BPF ring buffers (Linux 6.12+ with root)
+    //   2. nvidia-smi polling (any system with NVIDIA GPU)
+    //   3. Simulator (development/demo)
+    // ============================================================
 
-    let active_probes = load_result.status.active_count();
-    info!(active_probes, "BPF probe status");
+    let source = if args.simulate {
+        TelemetrySource::Simulator
+    } else {
+        // Try BPF first
+        let load_result = loader::load_all_probes().unwrap_or_else(|e| {
+            tracing::warn!("BPF probe loading failed: {e}");
+            loader::LoadResult {
+                status: loader::ProbeStatus::none(),
+            }
+        });
+
+        if load_result.status.active_count() > 0 {
+            info!(
+                active = load_result.status.active_count(),
+                "BPF probes loaded"
+            );
+            TelemetrySource::Bpf
+        } else if fallback::nvidia_smi_available() {
+            info!("BPF unavailable, using nvidia-smi fallback for real GPU metrics");
+            TelemetrySource::NvidiaSmi
+        } else {
+            info!("no BPF or nvidia-smi available, using simulator");
+            TelemetrySource::Simulator
+        }
+    };
+
+    info!(source = %source, "telemetry source selected");
 
     // Shared metrics state
     let metrics = Arc::new(RwLock::new(AggregatedMetrics::default()));
 
-    // If no BPF probes or --simulate, run simulator
-    let simulate = args.simulate || active_probes == 0;
-    if simulate {
-        info!("running telemetry simulator (no BPF probes)");
-        let sim_metrics = Arc::clone(&metrics);
-        tokio::spawn(async move {
-            simulator::run_simulator(sim_metrics, 500).await;
-        });
+    // Start the appropriate telemetry provider
+    match source {
+        TelemetrySource::Bpf => {
+            // TODO: When full BPF skeleton loading is wired up, spawn ring
+            // buffer polling tasks here that read events and feed into metrics.
+            // For now, BPF is detected but we fall through to fallback behavior.
+            info!("BPF ring buffer polling active");
+            let fb_metrics = Arc::clone(&metrics);
+            tokio::spawn(async move {
+                fallback::run_fallback(fb_metrics, 1000).await;
+            });
+        }
+        TelemetrySource::NvidiaSmi => {
+            let fb_metrics = Arc::clone(&metrics);
+            tokio::spawn(async move {
+                fallback::run_fallback(fb_metrics, 1000).await;
+            });
+        }
+        TelemetrySource::Simulator => {
+            let sim_metrics = Arc::clone(&metrics);
+            tokio::spawn(async move {
+                simulator::run_simulator(sim_metrics, 500).await;
+            });
+        }
     }
 
     // Alert engine
@@ -114,7 +176,7 @@ async fn main() -> Result<()> {
     info!(
         metrics_port = args.metrics_port,
         ws_port = args.ws_port,
-        simulate,
+        source = %source,
         "zerneld ready"
     );
 

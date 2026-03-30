@@ -27,6 +27,7 @@ tokio-tungstenite = "0.24"
 futures-util = "0.3"
 toml = "0.8"
 clap = { version = "4", features = ["derive", "env"] }
+quick-xml = "0.37"
 
 [build-dependencies]
 libbpf-cargo = { version = "0.23", optional = true }

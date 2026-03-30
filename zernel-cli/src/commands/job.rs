@@ -22,12 +22,24 @@ pub enum JobCommands {
         /// Number of nodes
         #[arg(long, default_value = "1")]
         nodes: u32,
-        /// Framework (pytorch, jax)
+        /// Framework (pytorch, accelerate)
         #[arg(long, default_value = "pytorch")]
         framework: String,
         /// Communication backend (nccl, gloo)
         #[arg(long, default_value = "nccl")]
         backend: String,
+        /// Execution target (local, ssh, k8s)
+        #[arg(long, default_value = "local")]
+        target: String,
+        /// SSH hosts (comma-separated or file path) for --target ssh
+        #[arg(long)]
+        hosts: Option<String>,
+        /// Container image for --target k8s
+        #[arg(long)]
+        image: Option<String>,
+        /// Kubernetes namespace for --target k8s
+        #[arg(long, default_value = "default")]
+        namespace: String,
         /// Additional script arguments
         #[arg(trailing_var_arg = true)]
         args: Vec<String>,
@@ -126,9 +138,92 @@ pub async fn run(cmd: JobCommands) -> Result<()> {
             nodes,
             framework,
             backend,
+            target,
+            hosts,
+            image,
+            namespace,
             args,
         } => {
             let script_path = std::path::Path::new(&script);
+            if (target == "local" || target == "ssh") && !script_path.exists() {
+                anyhow::bail!("script not found: {script}");
+            }
+
+            // Dispatch to SSH or K8s backends
+            if target == "ssh" {
+                let host_list = super::job_ssh::parse_hosts(
+                    hosts
+                        .as_deref()
+                        .ok_or_else(|| anyhow::anyhow!("--hosts required for --target ssh"))?,
+                )?;
+                if host_list.len() < nodes as usize {
+                    anyhow::bail!("need {} hosts but only {} provided", nodes, host_list.len());
+                }
+                let job_id = generate_job_id();
+                let log_dir = jobs_log_dir(&job_id);
+
+                let conn = open_jobs_db()?;
+                conn.execute(
+                    "INSERT INTO jobs (id, script, status, gpus_per_node, nodes, framework, backend, submitted_at) VALUES (?1, ?2, 'running', ?3, ?4, ?5, ?6, ?7)",
+                    (&job_id, &script, gpus_per_node, nodes, &framework, &backend, Utc::now().to_rfc3339()),
+                )?;
+
+                let exit_code = super::job_ssh::run_ssh_job(
+                    &job_id,
+                    &script,
+                    &host_list[..nodes as usize],
+                    gpus_per_node,
+                    &framework,
+                    &backend,
+                    &args,
+                    &log_dir,
+                )
+                .await?;
+
+                let status = if exit_code == 0 { "done" } else { "failed" };
+                conn.execute(
+                    "UPDATE jobs SET status = ?1, finished_at = ?2, exit_code = ?3 WHERE id = ?4",
+                    (status, Utc::now().to_rfc3339(), exit_code, &job_id),
+                )?;
+                println!("\nJob {job_id}: {status} (exit {exit_code})");
+                return Ok(());
+            }
+
+            if target == "k8s" {
+                let img = image
+                    .as_deref()
+                    .ok_or_else(|| anyhow::anyhow!("--image required for --target k8s"))?;
+                let job_id = generate_job_id();
+                let log_dir = jobs_log_dir(&job_id);
+
+                let conn = open_jobs_db()?;
+                conn.execute(
+                    "INSERT INTO jobs (id, script, status, gpus_per_node, nodes, framework, backend, submitted_at) VALUES (?1, ?2, 'running', ?3, ?4, ?5, ?6, ?7)",
+                    (&job_id, &script, gpus_per_node, nodes, &framework, &backend, Utc::now().to_rfc3339()),
+                )?;
+
+                let exit_code = super::job_k8s::run_k8s_job(
+                    &job_id,
+                    &script,
+                    img,
+                    gpus_per_node,
+                    nodes,
+                    &namespace,
+                    &args,
+                    &log_dir,
+                )
+                .await?;
+
+                let status = if exit_code == 0 { "done" } else { "failed" };
+                conn.execute(
+                    "UPDATE jobs SET status = ?1, finished_at = ?2, exit_code = ?3 WHERE id = ?4",
+                    (status, Utc::now().to_rfc3339(), exit_code, &job_id),
+                )?;
+                println!("\nJob {job_id}: {status} (exit {exit_code})");
+                return Ok(());
+            }
+
+            // Local target (existing code)
             if !script_path.exists() {
                 anyhow::bail!("script not found: {script}");
             }
