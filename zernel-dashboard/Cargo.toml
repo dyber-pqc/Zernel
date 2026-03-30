@@ -19,7 +19,7 @@ tracing.workspace = true
 tracing-subscriber.workspace = true
 axum = { version = "0.8", features = ["ws"] }
 tower-http = { version = "0.6", features = ["cors", "fs"] }
-tokio-tungstenite = "0.24"
+tokio-tungstenite = "0.26"
 futures-util = "0.3"
 rusqlite = { version = "0.31", features = ["bundled"] }
 chrono = { version = "0.4", features = ["serde"] }

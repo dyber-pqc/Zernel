@@ -71,7 +71,7 @@ async fn handle_connection(
                     let m = metrics.read().await;
                     m.to_ws_snapshot()
                 };
-                let msg = Message::Text(snapshot.to_string());
+                let msg = Message::Text(snapshot.to_string().into());
                 if write.send(msg).await.is_err() {
                     break;
                 }
