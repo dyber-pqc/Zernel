@@ -1,0 +1,137 @@
+#!/usr/bin/env bash
+# zernel install — Package manager wrapper for ML tools
+# Copyright (C) 2026 Dyber, Inc.
+#
+# Usage: zernel install <tool>
+#        zernel install --list
+set -euo pipefail
+
+ML_ENV="/opt/zernel/ml-env"
+
+# Tool registry: name → install command
+declare -A TOOLS=(
+    # ML Frameworks
+    ["pytorch"]="pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124"
+    ["jax"]="pip install 'jax[cuda12]'"
+    ["tensorflow"]="pip install tensorflow"
+
+    # LLM & Inference
+    ["vllm"]="pip install vllm"
+    ["transformers"]="pip install transformers datasets accelerate"
+    ["ollama"]="curl -fsSL https://ollama.ai/install.sh | sh"
+    ["llamacpp"]="pip install llama-cpp-python"
+
+    # Fine-tuning
+    ["peft"]="pip install peft trl"
+    ["deepspeed"]="pip install deepspeed"
+    ["bitsandbytes"]="pip install bitsandbytes"
+    ["gptq"]="pip install auto-gptq optimum"
+
+    # Developer Tools
+    ["jupyter"]="pip install jupyterlab ipywidgets"
+    ["tensorboard"]="pip install tensorboard"
+    ["wandb"]="pip install wandb"
+    ["mlflow"]="pip install mlflow"
+    ["gradio"]="pip install gradio"
+
+    # RAG & Vector Stores
+    ["langchain"]="pip install langchain langchain-community"
+    ["chromadb"]="pip install chromadb"
+    ["faiss"]="pip install faiss-gpu"
+
+    # Data Processing
+    ["pandas"]="pip install pandas polars pyarrow"
+    ["rapids"]="pip install cudf-cu12 cuml-cu12 --extra-index-url https://pypi.nvidia.com"
+    ["sklearn"]="pip install scikit-learn"
+
+    # Visualization
+    ["matplotlib"]="pip install matplotlib seaborn plotly"
+
+    # Full stack
+    ["all"]="INSTALL_ALL"
+)
+
+show_help() {
+    echo "zernel install — Install ML/AI tools"
+    echo ""
+    echo "Usage:"
+    echo "  zernel install <tool>       Install a specific tool"
+    echo "  zernel install --list       Show available tools"
+    echo "  zernel install all          Install everything"
+    echo ""
+    echo "Examples:"
+    echo "  zernel install pytorch"
+    echo "  zernel install ollama"
+    echo "  zernel install jupyter"
+}
+
+show_list() {
+    echo "Available tools:"
+    echo ""
+    printf "  %-16s %s\n" "Tool" "Description"
+    printf "  %-16s %s\n" "----" "-----------"
+    printf "  %-16s %s\n" "pytorch" "PyTorch + torchvision + torchaudio (CUDA)"
+    printf "  %-16s %s\n" "jax" "Google JAX (CUDA)"
+    printf "  %-16s %s\n" "tensorflow" "TensorFlow"
+    printf "  %-16s %s\n" "vllm" "vLLM inference engine"
+    printf "  %-16s %s\n" "transformers" "HuggingFace Transformers + datasets + accelerate"
+    printf "  %-16s %s\n" "ollama" "Ollama local LLM runtime"
+    printf "  %-16s %s\n" "llamacpp" "llama.cpp Python bindings"
+    printf "  %-16s %s\n" "peft" "Parameter-efficient fine-tuning (LoRA)"
+    printf "  %-16s %s\n" "deepspeed" "DeepSpeed distributed training"
+    printf "  %-16s %s\n" "bitsandbytes" "Quantization (4-bit, 8-bit)"
+    printf "  %-16s %s\n" "gptq" "GPTQ quantization"
+    printf "  %-16s %s\n" "jupyter" "JupyterLab"
+    printf "  %-16s %s\n" "tensorboard" "TensorBoard"
+    printf "  %-16s %s\n" "wandb" "Weights & Biases"
+    printf "  %-16s %s\n" "mlflow" "MLflow"
+    printf "  %-16s %s\n" "gradio" "Gradio web UI"
+    printf "  %-16s %s\n" "langchain" "LangChain + community"
+    printf "  %-16s %s\n" "chromadb" "ChromaDB vector store"
+    printf "  %-16s %s\n" "faiss" "FAISS GPU vector search"
+    printf "  %-16s %s\n" "pandas" "Pandas + Polars + PyArrow"
+    printf "  %-16s %s\n" "rapids" "NVIDIA RAPIDS (cuDF, cuML)"
+    printf "  %-16s %s\n" "sklearn" "scikit-learn"
+    printf "  %-16s %s\n" "matplotlib" "Matplotlib + Seaborn + Plotly"
+    printf "  %-16s %s\n" "all" "Install everything"
+}
+
+if [ $# -eq 0 ] || [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
+    show_help
+    exit 0
+fi
+
+if [ "$1" = "--list" ] || [ "$1" = "list" ]; then
+    show_list
+    exit 0
+fi
+
+TOOL="$1"
+
+# Activate ML environment if it exists
+if [ -d "${ML_ENV}" ]; then
+    source "${ML_ENV}/bin/activate"
+fi
+
+if [ "$TOOL" = "all" ]; then
+    echo "Installing all ML tools..."
+    for name in pytorch jax vllm transformers ollama peft deepspeed jupyter tensorboard langchain chromadb pandas matplotlib; do
+        echo ""
+        echo "=== Installing: ${name} ==="
+        cmd="${TOOLS[$name]}"
+        eval "$cmd" || echo "  Warning: ${name} installation failed (continuing)"
+    done
+    echo ""
+    echo "All tools installed."
+    exit 0
+fi
+
+if [ -z "${TOOLS[$TOOL]+x}" ]; then
+    echo "Unknown tool: ${TOOL}"
+    echo "Run: zernel install --list"
+    exit 1
+fi
+
+echo "Installing: ${TOOL}..."
+eval "${TOOLS[$TOOL]}"
+echo "Done."

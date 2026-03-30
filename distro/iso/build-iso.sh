@@ -5,21 +5,31 @@
 # Builds a bootable Zernel Linux ISO using Debian live-build.
 # Requires: live-build, debootstrap, squashfs-tools, sudo
 #
-# Usage: sudo ./build-iso.sh [--arch amd64|arm64]
+# Usage: sudo ./build-iso.sh [--profile desktop|server] [--arch amd64|arm64]
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 BUILD_DIR="$SCRIPT_DIR/build"
-ARCH="${1:---arch}"
-ARCH="${2:-amd64}"
+PROFILE="${ZERNEL_PROFILE:-server}"
+ARCH="amd64"
+
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --profile) PROFILE="$2"; shift 2 ;;
+        --arch) ARCH="$2"; shift 2 ;;
+        *) shift ;;
+    esac
+done
 VERSION="0.1.0"
-ISO_NAME="zernel-${VERSION}-${ARCH}.iso"
+ISO_NAME="zernel-${VERSION}-${PROFILE}-${ARCH}.iso"
 
 echo "╔═══════════════════════════════════════╗"
 echo "║     Zernel ISO Builder v${VERSION}          ║"
 echo "╚═══════════════════════════════════════╝"
 echo ""
+echo "  Profile:      ${PROFILE}"
 echo "  Architecture: ${ARCH}"
 echo "  Repository:   ${REPO_ROOT}"
 echo "  Build dir:    ${BUILD_DIR}"
@@ -63,9 +73,19 @@ lb config \
 # ============================================================
 # Step 2: Add base packages
 # ============================================================
-echo "[2/7] Adding base packages..."
+echo "[2/8] Adding base packages..."
 cp "$REPO_ROOT/distro/packages/base-packages.list" \
     config/package-lists/base.list.chroot
+cp "$REPO_ROOT/distro/packages/ai-ml-stack.list" \
+    config/package-lists/ai-ml.list.chroot
+
+if [ "$PROFILE" = "desktop" ]; then
+    echo "  Adding GNOME desktop packages..."
+    cp "$REPO_ROOT/distro/packages/gnome-packages.list" \
+        config/package-lists/gnome.list.chroot
+    cp "$REPO_ROOT/distro/packages/desktop-apps.list" \
+        config/package-lists/desktop-apps.list.chroot
+fi
 
 # ============================================================
 # Step 3: NVIDIA repository and packages
@@ -96,6 +116,13 @@ mkdir -p config/includes.chroot/usr/local/bin
 cp "$REPO_ROOT/target/release/zernel" config/includes.chroot/usr/local/bin/
 cp "$REPO_ROOT/target/release/zernel-ebpf" config/includes.chroot/usr/local/bin/zerneld
 cp "$REPO_ROOT/target/release/zernel-scheduler" config/includes.chroot/usr/local/bin/
+cp "$REPO_ROOT/target/release/zernel-dashboard" config/includes.chroot/usr/local/bin/ 2>/dev/null || true
+
+# ML stack setup script and zernel install wrapper
+mkdir -p config/includes.chroot/opt/zernel
+cp "$REPO_ROOT/distro/scripts/setup-ml-stack.sh" config/includes.chroot/opt/zernel/
+cp "$REPO_ROOT/distro/scripts/zernel-install" config/includes.chroot/usr/local/bin/
+chmod +x config/includes.chroot/usr/local/bin/zernel-install
 
 # ============================================================
 # Step 5: Add sysctl configuration
@@ -113,6 +140,18 @@ echo "[6/7] Adding systemd services..."
 mkdir -p config/includes.chroot/lib/systemd/system
 cp "$REPO_ROOT/distro/systemd/zerneld.service" config/includes.chroot/lib/systemd/system/
 cp "$REPO_ROOT/distro/systemd/zernel-scheduler.service" config/includes.chroot/lib/systemd/system/
+cp "$REPO_ROOT/distro/systemd/zernel-dashboard.service" config/includes.chroot/lib/systemd/system/
+cp "$REPO_ROOT/distro/systemd/ollama.service" config/includes.chroot/lib/systemd/system/
+
+# GNOME extension and branding (desktop profile only)
+if [ "$PROFILE" = "desktop" ]; then
+    echo "  Adding GNOME extension and branding..."
+    mkdir -p config/includes.chroot/tmp/zernel-gnome
+    cp -r "$REPO_ROOT/distro/gnome/zernel-gpu-indicator@dyber.io" config/includes.chroot/tmp/zernel-gnome/
+    cp -r "$REPO_ROOT/distro/gnome/overrides" config/includes.chroot/tmp/zernel-gnome/
+    cp "$REPO_ROOT/distro/iso/hooks/03-gnome-setup.hook.chroot" config/hooks/live/
+    chmod +x config/hooks/live/03-gnome-setup.hook.chroot
+fi
 
 # Enable services on boot
 cat > config/hooks/live/02-zernel-services.hook.chroot << 'HOOK'

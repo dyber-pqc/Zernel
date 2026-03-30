@@ -1,0 +1,8 @@
+{
+    "uuid": "zernel-gpu-indicator@dyber.io",
+    "name": "Zernel GPU Indicator",
+    "description": "Shows NVIDIA GPU utilization, temperature, and memory in the GNOME top bar. Part of the Zernel AI-Native Linux OS.",
+    "shell-version": ["45", "46", "47"],
+    "version": 1,
+    "url": "https://github.com/dyber-pqc/Zernel"
+}

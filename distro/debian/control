@@ -39,3 +39,32 @@ Description: Zernel sched_ext ML-aware CPU scheduler
  .
  Features NUMA-aware CPU selection and multi-tenant GPU-proportional
  CPU allocation.
+
+Package: zernel-dashboard
+Architecture: amd64 arm64
+Depends: ${misc:Depends}, zerneld
+Description: Zernel web dashboard — browser-based ML monitoring
+ Real-time GPU monitoring, experiment tracking, job management, and
+ model registry in a browser-based dashboard. Connects to zerneld
+ for live telemetry via Server-Sent Events.
+
+Package: zernel-desktop
+Architecture: amd64 arm64
+Depends: ${misc:Depends}, zernel-cli, zerneld, zernel-dashboard,
+ gnome-core, gdm3, gnome-terminal, nautilus
+Recommends: zernel-scheduler, firefox-esr, gnome-system-monitor
+Description: Zernel desktop — GNOME-based ML workstation
+ Complete GNOME desktop environment configured for ML development.
+ Includes Zernel GPU indicator extension for the top bar, dark theme,
+ and pre-configured applications for ML workflows.
+
+Package: zernel-ml-stack
+Architecture: amd64 arm64
+Depends: ${misc:Depends}, python3, python3-pip, python3-venv, python3-dev,
+ build-essential, zernel-cli
+Description: Zernel ML/AI/LLM stack — pre-configured ML tools
+ Complete ML/AI/LLM development environment including PyTorch, JAX,
+ vLLM, HuggingFace Transformers, DeepSpeed, Jupyter Lab, LangChain,
+ ChromaDB, and Ollama for local LLM inference.
+ .
+ Run setup: /opt/zernel/setup-ml-stack.sh

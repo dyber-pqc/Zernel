@@ -49,6 +49,21 @@ echo "  Network: $(ip -o link show | grep -v 'lo:' | awk '{print $2}' | tr '\n' 
 echo ""
 
 # ============================================================
+# Step 1.5: Profile Selection
+# ============================================================
+echo "Select installation profile:"
+echo "  1) Server    — Headless, CLI-only, optimized for GPU compute"
+echo "  2) Desktop   — GNOME desktop + GPU monitor + all ML tools"
+echo ""
+read -rp "Profile [1/2] (default: 1): " PROFILE_CHOICE
+case "${PROFILE_CHOICE}" in
+    2) PROFILE="desktop" ;;
+    *) PROFILE="server" ;;
+esac
+echo "  Selected: ${PROFILE}"
+echo ""
+
+# ============================================================
 # Step 2: Disk Selection
 # ============================================================
 echo "[2/10] Available disks:"
@@ -128,19 +143,32 @@ EOF
 # ============================================================
 # Step 6: Install kernel and NVIDIA
 # ============================================================
-echo "[6/10] Installing kernel..."
+echo "[6/12] Installing kernel..."
 chroot "$MOUNT" apt-get update -qq
 chroot "$MOUNT" apt-get install -y --no-install-recommends \
     linux-image-amd64 firmware-linux grub-efi-amd64 \
-    systemd-sysv locales openssh-server curl git
+    systemd-sysv locales openssh-server curl git \
+    python3 python3-pip python3-venv python3-dev build-essential
+
+# Desktop profile: install GNOME
+if [ "$PROFILE" = "desktop" ]; then
+    echo "[6.5/12] Installing GNOME desktop..."
+    chroot "$MOUNT" apt-get install -y --no-install-recommends \
+        gnome-core gdm3 gnome-terminal nautilus gnome-system-monitor \
+        gnome-control-center gnome-text-editor firefox-esr \
+        fonts-dejavu fonts-liberation2 file-roller eog evince
+    chroot "$MOUNT" systemctl enable gdm3
+fi
 
 # ============================================================
 # Step 7: Install Zernel binaries
 # ============================================================
-echo "[7/10] Installing Zernel..."
+echo "[7/12] Installing Zernel..."
 cp /usr/local/bin/zernel "$MOUNT/usr/local/bin/" 2>/dev/null || true
 cp /usr/local/bin/zerneld "$MOUNT/usr/local/bin/" 2>/dev/null || true
 cp /usr/local/bin/zernel-scheduler "$MOUNT/usr/local/bin/" 2>/dev/null || true
+cp /usr/local/bin/zernel-dashboard "$MOUNT/usr/local/bin/" 2>/dev/null || true
+cp /usr/local/bin/zernel-install "$MOUNT/usr/local/bin/" 2>/dev/null || true
 
 # ============================================================
 # Step 8: Apply sysctl tuning
@@ -156,11 +184,39 @@ cp /lib/systemd/system/zerneld.service "$MOUNT/lib/systemd/system/" 2>/dev/null 
 cp /lib/systemd/system/zernel-scheduler.service "$MOUNT/lib/systemd/system/" 2>/dev/null || true
 chroot "$MOUNT" systemctl enable zerneld.service 2>/dev/null || true
 chroot "$MOUNT" systemctl enable zernel-scheduler.service 2>/dev/null || true
+cp /lib/systemd/system/zernel-dashboard.service "$MOUNT/lib/systemd/system/" 2>/dev/null || true
+chroot "$MOUNT" systemctl enable zernel-dashboard.service 2>/dev/null || true
 
 # ============================================================
-# Step 9: Install bootloader
+# Step 9: Install ML/AI/LLM Stack + Ollama
 # ============================================================
-echo "[9/10] Installing bootloader..."
+echo "[9/12] Installing ML/AI/LLM stack..."
+if [ -f /opt/zernel/setup-ml-stack.sh ]; then
+    cp /opt/zernel/setup-ml-stack.sh "$MOUNT/opt/zernel/"
+    chroot "$MOUNT" bash /opt/zernel/setup-ml-stack.sh --no-models || echo "  ML stack setup deferred to first boot"
+fi
+
+# Install Ollama
+echo "  Installing Ollama..."
+chroot "$MOUNT" bash -c 'curl -fsSL https://ollama.ai/install.sh | sh' 2>/dev/null || true
+cp /lib/systemd/system/ollama.service "$MOUNT/lib/systemd/system/" 2>/dev/null || true
+chroot "$MOUNT" useradd -r -s /bin/false ollama 2>/dev/null || true
+chroot "$MOUNT" systemctl enable ollama.service 2>/dev/null || true
+
+# Desktop profile: install GNOME extension
+if [ "$PROFILE" = "desktop" ]; then
+    echo "  Installing GNOME GPU indicator extension..."
+    EXTENSION_DIR="$MOUNT/usr/share/gnome-shell/extensions/zernel-gpu-indicator@dyber.io"
+    mkdir -p "$EXTENSION_DIR"
+    cp -r /tmp/zernel-gnome/zernel-gpu-indicator@dyber.io/* "$EXTENSION_DIR/" 2>/dev/null || true
+    cp /tmp/zernel-gnome/overrides/01-zernel.gschema.override "$MOUNT/usr/share/glib-2.0/schemas/" 2>/dev/null || true
+    chroot "$MOUNT" glib-compile-schemas /usr/share/glib-2.0/schemas/ 2>/dev/null || true
+fi
+
+# ============================================================
+# Step 10: Install bootloader
+# ============================================================
+echo "[10/12] Installing bootloader..."
 chroot "$MOUNT" grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=zernel
 chroot "$MOUNT" update-grub
 

@@ -1,0 +1,30 @@
+# Ollama Local LLM Runtime
+# Copyright (C) 2026 Dyber, Inc.
+#
+# Serves local LLM models (Llama 3, Phi-3, Mistral, etc.)
+# API: http://localhost:11434
+#
+# Usage: ollama run llama3.1:8b
+
+[Unit]
+Description=Ollama Local LLM Runtime
+Documentation=https://ollama.ai
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/ollama serve
+Restart=on-failure
+RestartSec=5
+Environment=OLLAMA_HOST=0.0.0.0
+Environment=OLLAMA_MODELS=/opt/zernel/ollama-models
+
+# Run as dedicated user
+User=ollama
+Group=ollama
+
+# GPU access
+SupplementaryGroups=video render
+
+[Install]
+WantedBy=multi-user.target

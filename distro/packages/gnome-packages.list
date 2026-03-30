@@ -1,0 +1,47 @@
+# Zernel Desktop — GNOME Packages
+# Copyright (C) 2026 Dyber, Inc.
+# Installed when profile=desktop
+
+# GNOME Desktop Environment
+gnome-core
+gnome-shell
+gnome-control-center
+gnome-settings-daemon
+gnome-system-monitor
+gnome-disk-utility
+gnome-power-manager
+
+# Display Manager
+gdm3
+
+# File Manager
+nautilus
+
+# Terminal
+gnome-terminal
+
+# Text Editor
+gnome-text-editor
+
+# System
+dbus-x11
+xdg-utils
+xdg-user-dirs
+
+# Fonts
+fonts-dejavu
+fonts-liberation2
+fonts-noto-color-emoji
+
+# Archive
+file-roller
+
+# Screenshot
+gnome-screenshot
+
+# Audio
+pipewire
+wireplumber
+
+# Accessibility
+at-spi2-core

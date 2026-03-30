@@ -1,0 +1,23 @@
+# Zernel Desktop — Additional Applications
+# Copyright (C) 2026 Dyber, Inc.
+
+# Web Browser
+firefox-esr
+
+# Image Viewer
+eog
+
+# PDF Viewer
+evince
+
+# Calculator
+gnome-calculator
+
+# System Monitor (enhanced)
+nvtop
+
+# Development
+git
+curl
+wget
+vim

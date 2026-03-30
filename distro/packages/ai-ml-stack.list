@@ -1,0 +1,47 @@
+# Zernel AI/ML/LLM Stack — System Packages
+# Copyright (C) 2026 Dyber, Inc.
+#
+# Python ML packages are installed via distro/scripts/setup-ml-stack.sh
+# This file lists the system-level dependencies needed by the ML stack.
+
+# Python environment
+python3.12
+python3-pip
+python3-venv
+python3-dev
+
+# Build tools for compiling Python packages with C extensions
+build-essential
+cmake
+ninja-build
+pkg-config
+
+# Linear algebra (used by NumPy, PyTorch, JAX)
+libopenblas-dev
+liblapack-dev
+
+# Image processing (used by torchvision, PIL)
+libjpeg-dev
+libpng-dev
+libwebp-dev
+
+# HDF5 (used by h5py, Keras)
+libhdf5-dev
+
+# FFmpeg (used by torchaudio, video processing)
+ffmpeg
+libavcodec-dev
+libavformat-dev
+
+# Compression (used by datasets, model loading)
+zlib1g-dev
+liblz4-dev
+libzstd-dev
+
+# Networking (used by distributed training)
+librdmacm-dev
+libibverbs-dev
+
+# Jupyter dependencies
+nodejs
+npm

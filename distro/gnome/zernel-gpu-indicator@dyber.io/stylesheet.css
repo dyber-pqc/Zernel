@@ -1,0 +1,41 @@
+/* Zernel GPU Indicator — GNOME Shell Extension Styles */
+/* Copyright (C) 2026 Dyber, Inc. */
+
+.zernel-gpu-indicator {
+    padding: 0 8px;
+}
+
+.zernel-gpu-label {
+    font-size: 11px;
+    font-weight: 500;
+    color: #e2e8f0;
+}
+
+.zernel-gpu-label-warn {
+    font-size: 11px;
+    font-weight: 600;
+    color: #fbbf24;
+}
+
+.zernel-gpu-label-crit {
+    font-size: 11px;
+    font-weight: 700;
+    color: #ef4444;
+}
+
+.zernel-gpu-popup {
+    padding: 12px;
+    min-width: 300px;
+}
+
+.zernel-gpu-popup-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #22d3ee;
+    margin-bottom: 8px;
+}
+
+.zernel-gpu-popup-row {
+    font-size: 12px;
+    padding: 2px 0;
+}

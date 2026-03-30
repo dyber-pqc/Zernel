@@ -1,0 +1,27 @@
+# Zernel Web Dashboard
+# Copyright (C) 2026 Dyber, Inc.
+#
+# Browser-based ML monitoring dashboard.
+# URL: http://localhost:3000
+
+[Unit]
+Description=Zernel Web Dashboard
+Documentation=https://github.com/dyber-pqc/Zernel
+After=network.target zerneld.service
+Wants=zerneld.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/zernel-dashboard --port 3000
+Restart=on-failure
+RestartSec=5
+Environment=ZERNEL_WS_URL=ws://127.0.0.1:9092
+
+# Security hardening
+ProtectHome=read-only
+ProtectSystem=strict
+ReadWritePaths=/tmp
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

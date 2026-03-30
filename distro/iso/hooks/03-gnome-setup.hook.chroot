@@ -1,0 +1,52 @@
+#!/bin/bash
+# Zernel GNOME Desktop Setup Hook
+# Copyright (C) 2026 Dyber, Inc.
+#
+# Runs inside the chroot during ISO build to configure GNOME desktop.
+
+set -e
+
+echo "Zernel: Configuring GNOME desktop..."
+
+# Install GNOME extension
+EXTENSION_DIR="/usr/share/gnome-shell/extensions/zernel-gpu-indicator@dyber.io"
+if [ -d "/tmp/zernel-gnome/zernel-gpu-indicator@dyber.io" ]; then
+    mkdir -p "$EXTENSION_DIR"
+    cp -r /tmp/zernel-gnome/zernel-gpu-indicator@dyber.io/* "$EXTENSION_DIR/"
+    echo "  Installed Zernel GPU indicator extension"
+fi
+
+# Apply GNOME schema overrides
+if [ -f "/tmp/zernel-gnome/overrides/01-zernel.gschema.override" ]; then
+    cp /tmp/zernel-gnome/overrides/01-zernel.gschema.override /usr/share/glib-2.0/schemas/
+    glib-compile-schemas /usr/share/glib-2.0/schemas/ 2>/dev/null || true
+    echo "  Applied Zernel GNOME settings (dark theme, favorites)"
+fi
+
+# Enable GDM
+systemctl enable gdm3 2>/dev/null || true
+echo "  Enabled GDM display manager"
+
+# Create zernel-dashboard desktop entry
+cat > /usr/share/applications/zernel-dashboard.desktop << 'DESKTOP'
+[Desktop Entry]
+Type=Application
+Name=Zernel Dashboard
+Comment=ML Monitoring Dashboard
+Exec=xdg-open http://localhost:3000
+Icon=utilities-system-monitor
+Categories=System;Monitor;
+Terminal=false
+DESKTOP
+
+# Create wallpaper directory (actual wallpaper would be placed here)
+mkdir -p /usr/share/backgrounds/zernel
+# Placeholder: generate a simple dark background
+if command -v convert &> /dev/null; then
+    convert -size 3840x2160 xc:'#0f172a' \
+        -font Helvetica -pointsize 72 -fill '#22d3ee' \
+        -gravity center -annotate 0 'Z E R N E L' \
+        /usr/share/backgrounds/zernel/default-dark.png 2>/dev/null || true
+fi
+
+echo "  GNOME desktop configuration complete"

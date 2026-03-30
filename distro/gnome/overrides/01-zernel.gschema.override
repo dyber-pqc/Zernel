@@ -1,0 +1,30 @@
+# Zernel GNOME Desktop Defaults
+# Copyright (C) 2026 Dyber, Inc.
+#
+# Install: cp 01-zernel.gschema.override /usr/share/glib-2.0/schemas/
+#          glib-compile-schemas /usr/share/glib-2.0/schemas/
+
+[org.gnome.desktop.interface]
+color-scheme='prefer-dark'
+gtk-theme='Adwaita-dark'
+monospace-font-name='JetBrains Mono 11'
+clock-show-seconds=true
+
+[org.gnome.desktop.background]
+picture-uri='file:///usr/share/backgrounds/zernel/default.png'
+picture-uri-dark='file:///usr/share/backgrounds/zernel/default-dark.png'
+primary-color='#0f172a'
+
+[org.gnome.shell]
+favorite-apps=['org.gnome.Terminal.desktop', 'org.gnome.Nautilus.desktop', 'firefox-esr.desktop', 'zernel-dashboard.desktop']
+enabled-extensions=['zernel-gpu-indicator@dyber.io']
+
+[org.gnome.desktop.wm.preferences]
+button-layout='appmenu:minimize,maximize,close'
+
+[org.gnome.Terminal.Legacy.Profile]
+default-size-columns=120
+default-size-rows=36
+
+[org.gnome.settings-daemon.plugins.power]
+sleep-inactive-ac-type='nothing'
