@@ -224,17 +224,67 @@ pub async fn run(cmd: ModelCommands) -> Result<()> {
                 .find(|e| e.name == name && e.tag == tag)
                 .ok_or_else(|| anyhow::anyhow!("model not found: {name}:{tag}"))?;
 
+            let model_path = registry_dir().join(name).join(tag);
+
             println!(
                 "Deploying {name}:{tag} (v{}) to {target} on port {port}",
                 entry.version
             );
-            println!("  Source: {}", entry.source_path);
-            println!();
-            println!("(inference server deployment not yet implemented)");
-            println!(
-                "  For now, use: vllm serve {} --port {port}",
-                entry.source_path
-            );
+            println!("  Source: {}", model_path.display());
+
+            match target.as_str() {
+                "local" => {
+                    // Check vllm is installed
+                    let vllm_check = std::process::Command::new("python3")
+                        .args(["-c", "import vllm; print(vllm.__version__)"])
+                        .output();
+
+                    match vllm_check {
+                        Ok(output) if output.status.success() => {
+                            let version =
+                                String::from_utf8_lossy(&output.stdout).trim().to_string();
+                            println!("  vLLM:   v{version}");
+                        }
+                        _ => {
+                            println!();
+                            println!("  vLLM not found. Install with: pip install vllm");
+                            println!(
+                                "  Or run manually: python3 -m vllm.entrypoints.openai.api_server --model {} --port {port}",
+                                model_path.display()
+                            );
+                            return Ok(());
+                        }
+                    }
+
+                    println!();
+                    println!("Starting vLLM inference server...");
+                    println!("  URL: http://localhost:{port}/v1");
+                    println!("  Press Ctrl+C to stop");
+                    println!();
+
+                    // Launch vLLM
+                    let status = tokio::process::Command::new("python3")
+                        .args([
+                            "-m",
+                            "vllm.entrypoints.openai.api_server",
+                            "--model",
+                            &model_path.to_string_lossy(),
+                            "--port",
+                            &port.to_string(),
+                        ])
+                        .status()
+                        .await
+                        .with_context(|| "failed to start vLLM server")?;
+
+                    if !status.success() {
+                        anyhow::bail!("vLLM exited with code {}", status.code().unwrap_or(-1));
+                    }
+                }
+                other => {
+                    println!();
+                    println!("Deployment target '{other}' not yet supported. Available: local");
+                }
+            }
         }
     }
     Ok(())

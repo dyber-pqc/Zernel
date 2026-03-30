@@ -69,6 +69,12 @@ enum Commands {
         /// Experiment ID (default: latest)
         #[arg(long)]
         id: Option<String>,
+        /// Follow output in real-time (for running experiments)
+        #[arg(long, short)]
+        follow: bool,
+        /// Filter output lines containing this string
+        #[arg(long)]
+        grep: Option<String>,
     },
 }
 
@@ -93,11 +99,6 @@ async fn main() -> Result<()> {
             println!("{result}");
             Ok(())
         }
-        Commands::Log { id } => {
-            let id_str = id.unwrap_or_else(|| "(latest)".into());
-            println!("Showing logs for experiment: {id_str}");
-            println!("(log replay not yet implemented)");
-            Ok(())
-        }
+        Commands::Log { id, follow, grep } => commands::log::run(id, follow, grep).await,
     }
 }

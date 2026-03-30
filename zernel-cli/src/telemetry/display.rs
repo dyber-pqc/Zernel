@@ -2,7 +2,7 @@
 
 use super::client::TelemetrySnapshot;
 
-/// Format a telemetry snapshot for terminal display (used by `zernel watch`).
+/// Format a utilization bar for terminal display.
 pub fn format_gpu_bar(utilization: u8, width: usize) -> String {
     let filled = (utilization as usize * width) / 100;
     let empty = width - filled;
@@ -18,13 +18,16 @@ pub fn format_gpu_bar(utilization: u8, width: usize) -> String {
 pub fn format_snapshot(snapshot: &TelemetrySnapshot) -> String {
     let mut out = String::new();
 
-    for gpu in &snapshot.gpu_utilization {
+    for entry in &snapshot.gpu_utilization {
+        let used_gb = entry.current_bytes as f64 / (1024.0 * 1024.0 * 1024.0);
+        let total_gb = if entry.peak_bytes > 0 {
+            entry.peak_bytes as f64 / (1024.0 * 1024.0 * 1024.0)
+        } else {
+            80.0
+        };
         out.push_str(&format!(
-            "GPU {} {} Mem: {:.1}/{:.1} GB\n",
-            gpu.gpu_id,
-            format_gpu_bar(gpu.utilization_pct, 20),
-            gpu.memory_used_gb,
-            gpu.memory_total_gb,
+            "{}: {:.1}/{:.1} GB\n",
+            entry.key, used_gb, total_gb,
         ));
     }
 
@@ -37,10 +40,9 @@ pub fn format_snapshot(snapshot: &TelemetrySnapshot) -> String {
         snapshot.nccl_allreduce_p50_ms, snapshot.nccl_allreduce_p99_ms,
     ));
     out.push_str(&format!(
-        "DataLoader wait: p50={:.0}ms  PCIe: {:.1} GB/s\n",
-        snapshot.dataloader_wait_p50_ms, snapshot.pcie_bandwidth_gbps,
+        "DataLoader wait: p50={:.0}ms\n",
+        snapshot.dataloader_wait_p50_ms,
     ));
-    out.push_str(&format!("Scheduler phase: {}\n", snapshot.scheduler_phase));
 
     out
 }

@@ -76,12 +76,18 @@ pub async fn run(script: &str, args: &[String]) -> Result<()> {
     let exp_id_clone = exp_id.clone();
     let db_path_clone = db_path.clone();
 
+    // Create log directory and file
+    let log_dir = tracker::zernel_dir().join("experiments").join(&exp_id);
+    std::fs::create_dir_all(&log_dir).ok();
+    let log_path = log_dir.join("output.log");
+
     // Process stdout in a spawned task
     let stdout_handle = tokio::spawn(async move {
         let mut latest_metrics: HashMap<String, f64> = HashMap::new();
         let mut lines_processed = 0u64;
         let mut reader = BufReader::new(stdout);
         let mut line = String::new();
+        let mut log_file = std::fs::File::create(&log_path).ok();
 
         let store = ExperimentStore::open(&db_path_clone).ok();
 
@@ -92,6 +98,12 @@ pub async fn run(script: &str, args: &[String]) -> Result<()> {
                 Ok(_) => {
                     let trimmed = line.trim_end();
                     println!("{trimmed}");
+
+                    // Write to log file
+                    if let Some(ref mut f) = log_file {
+                        use std::io::Write;
+                        let _ = writeln!(f, "{trimmed}");
+                    }
 
                     let extracted = extractor.extract_from_line(trimmed);
                     if !extracted.is_empty() {

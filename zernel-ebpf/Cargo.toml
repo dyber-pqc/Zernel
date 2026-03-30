@@ -24,3 +24,4 @@ http-body-util = "0.1"
 tokio-tungstenite = "0.24"
 futures-util = "0.3"
 toml = "0.8"
+clap = { version = "4", features = ["derive", "env"] }

@@ -19,19 +19,40 @@ mod websocket_server;
 
 use aggregation::AggregatedMetrics;
 use anyhow::Result;
+use clap::Parser;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::info;
 
-const METRICS_PORT: u16 = 9091;
-const WS_PORT: u16 = 9092;
-const PUSH_INTERVAL_MS: u64 = 1000;
+#[derive(Parser)]
+#[command(name = "zerneld")]
+#[command(about = "Zernel eBPF Observability Daemon")]
+#[command(version)]
+struct Args {
+    /// Prometheus metrics HTTP port
+    #[arg(long, default_value = "9091", env = "ZERNEL_METRICS_PORT")]
+    metrics_port: u16,
+
+    /// WebSocket telemetry stream port
+    #[arg(long, default_value = "9092", env = "ZERNEL_WS_PORT")]
+    ws_port: u16,
+
+    /// WebSocket push interval in milliseconds
+    #[arg(long, default_value = "1000", env = "ZERNEL_PUSH_INTERVAL_MS")]
+    push_interval_ms: u64,
+
+    /// Run with simulated telemetry (no BPF probes)
+    #[arg(long)]
+    simulate: bool,
+}
 
 #[tokio::main]
 async fn main() -> Result<()> {
     tracing_subscriber::fmt()
         .with_env_filter(std::env::var("ZERNEL_LOG").unwrap_or_else(|_| "zernel_ebpf=info".into()))
         .init();
+
+    let args = Args::parse();
 
     info!("zerneld v{}", env!("CARGO_PKG_VERSION"));
 
@@ -41,8 +62,8 @@ async fn main() -> Result<()> {
     // Shared metrics state
     let metrics = Arc::new(RwLock::new(AggregatedMetrics::default()));
 
-    // If no BPF probes, run simulator for development
-    let simulate = std::env::args().any(|a| a == "--simulate") || !bpf_active;
+    // If no BPF probes or --simulate, run simulator
+    let simulate = args.simulate || !bpf_active;
     if simulate {
         info!("running telemetry simulator (no BPF probes)");
         let sim_metrics = Arc::clone(&metrics);
@@ -65,25 +86,26 @@ async fn main() -> Result<()> {
         loop {
             interval.tick().await;
             let m = alert_metrics.read().await;
-            for (key, gpu) in &m.gpu_memory {
+            for gpu in m.gpu_memory.values() {
                 if gpu.peak_bytes > 0 {
                     let used_pct = gpu.current_bytes as f64 / gpu.peak_bytes as f64 * 100.0;
                     alert_engine.evaluate("gpu_memory_used_pct", used_pct);
                 }
-                // Suppress unused key warning
-                let _ = key;
             }
         }
     });
 
     // Start servers
-    let metrics_srv = metrics_server::MetricsServer::new(Arc::clone(&metrics), METRICS_PORT);
-    let ws_srv =
-        websocket_server::WebSocketServer::new(Arc::clone(&metrics), WS_PORT, PUSH_INTERVAL_MS);
+    let metrics_srv = metrics_server::MetricsServer::new(Arc::clone(&metrics), args.metrics_port);
+    let ws_srv = websocket_server::WebSocketServer::new(
+        Arc::clone(&metrics),
+        args.ws_port,
+        args.push_interval_ms,
+    );
 
     info!(
-        metrics_port = METRICS_PORT,
-        ws_port = WS_PORT,
+        metrics_port = args.metrics_port,
+        ws_port = args.ws_port,
         simulate,
         "zerneld ready"
     );

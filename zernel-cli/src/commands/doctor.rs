@@ -196,14 +196,15 @@ fn check_git() -> CheckResult {
 }
 
 fn check_zerneld() -> CheckResult {
-    // Try to connect to zerneld health endpoint
+    let port = crate::telemetry::client::metrics_port();
+    let addr = format!("127.0.0.1:{port}");
     let result = std::net::TcpStream::connect_timeout(
-        &"127.0.0.1:9091".parse().expect("constant address"),
+        &addr.parse().expect("valid address"),
         std::time::Duration::from_millis(500),
     );
     match result {
-        Ok(_) => CheckResult::Pass("running on port 9091".into()),
-        Err(_) => CheckResult::Warn("not running — start with: zernel-ebpf --simulate".into()),
+        Ok(_) => CheckResult::Pass(format!("running on port {port}")),
+        Err(_) => CheckResult::Warn("not running — start with: zerneld --simulate".into()),
     }
 }
 
