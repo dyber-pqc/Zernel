@@ -24,6 +24,9 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Install Python markdown
+        run: pip install markdown
+
       - name: Generate API docs
         run: cargo doc --workspace --no-deps --document-private-items --exclude zernel-tests
         env:
@@ -31,41 +34,95 @@ jobs:
 
       - name: Build documentation site
         run: |
-          mkdir -p site
+          mkdir -p site/docs
 
           # Copy Rust API docs
           cp -r target/doc site/api
 
-          # Copy markdown docs
-          cp -r docs site/docs
-          cp README.md site/
-
-          # Create index page
-          cat > site/index.html << 'HTML'
-          <!DOCTYPE html>
-          <html>
+          # Convert markdown docs to HTML
+          for md in docs/*.md; do
+            name=$(basename "$md" .md)
+            title=$(head -1 "$md" | sed 's/^#\s*//')
+            python3 -c "
+          import markdown, sys
+          with open('$md', 'r') as f:
+              content = f.read()
+          html = markdown.markdown(content, extensions=['tables', 'fenced_code', 'codehilite', 'toc'])
+          page = '''<!DOCTYPE html>
+          <html lang=\"en\">
           <head>
-            <title>Zernel Documentation</title>
-            <meta charset="utf-8">
+            <meta charset=\"utf-8\">
+            <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">
+            <title>${title} — Zernel</title>
             <style>
-              body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; }
-              h1 { color: #1a1a2e; }
-              a { color: #0066cc; }
-              .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; }
-              .card { border: 1px solid #ddd; border-radius: 8px; padding: 20px; }
-              .card h3 { margin-top: 0; }
+              body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; background: #0f172a; color: #e2e8f0; }
+              a { color: #22d3ee; }
+              h1, h2, h3 { color: #f1f5f9; }
+              h1 { border-bottom: 2px solid #334155; padding-bottom: 8px; }
+              h2 { border-bottom: 1px solid #1e293b; padding-bottom: 6px; margin-top: 32px; }
+              code { background: #1e293b; padding: 2px 6px; border-radius: 4px; font-size: 14px; }
+              pre { background: #1e293b; padding: 16px; border-radius: 8px; overflow-x: auto; }
+              pre code { background: none; padding: 0; }
+              table { border-collapse: collapse; width: 100%; margin: 16px 0; }
+              th, td { border: 1px solid #334155; padding: 8px 12px; text-align: left; }
+              th { background: #1e293b; }
+              blockquote { border-left: 3px solid #22d3ee; padding-left: 16px; color: #94a3b8; }
+              nav { margin-bottom: 24px; }
+              nav a { margin-right: 16px; text-decoration: none; }
+              .back { color: #94a3b8; text-decoration: none; font-size: 14px; }
             </style>
           </head>
           <body>
-            <h1>Zernel Documentation</h1>
-            <p>AI-Native Linux OS for Machine Learning</p>
+            <nav><a href=\"../\" class=\"back\">← Zernel Docs</a></nav>
+          ''' + html + '''
+            <hr style=\"border-color: #334155; margin-top: 48px;\">
+            <p style=\"color: #475569; font-size: 12px;\">Copyright © 2026 Dyber, Inc.</p>
+          </body>
+          </html>'''
+          print(page)
+          " > "site/docs/${name}.html"
+          done
+
+          # Convert README to HTML for the root
+          python3 -c "
+          import markdown
+          with open('README.md', 'r') as f:
+              content = f.read()
+          print(markdown.markdown(content, extensions=['tables', 'fenced_code']))
+          " > site/readme_content.html || true
+
+          # Create index page
+          cat > site/index.html << 'HTMLEOF'
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <title>Zernel Documentation</title>
+            <style>
+              body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; background: #0f172a; color: #e2e8f0; }
+              h1 { color: #22d3ee; }
+              a { color: #22d3ee; text-decoration: none; }
+              a:hover { text-decoration: underline; }
+              .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; }
+              .card { border: 1px solid #334155; border-radius: 8px; padding: 20px; background: #1e293b; }
+              .card h3 { margin-top: 0; color: #f1f5f9; }
+              .card ul { padding-left: 20px; }
+              .card li { margin: 6px 0; }
+              .subtitle { color: #94a3b8; font-size: 18px; margin-top: -8px; }
+              footer { text-align: center; color: #475569; font-size: 12px; margin-top: 48px; }
+            </style>
+          </head>
+          <body>
+            <h1>Zernel</h1>
+            <p class="subtitle">AI-Native Linux OS for Machine Learning</p>
             <div class="grid">
               <div class="card">
                 <h3>Guides</h3>
                 <ul>
-                  <li><a href="docs/architecture.html">Architecture</a></li>
-                  <li><a href="docs/installation.html">Installation</a></li>
-                  <li><a href="docs/scheduler.html">ML Scheduler</a></li>
+                  <li><a href="docs/architecture.html">Architecture Overview</a></li>
+                  <li><a href="docs/installation.html">Installation Guide</a></li>
+                  <li><a href="docs/scheduler.html">ML Scheduler Deep-Dive</a></li>
                   <li><a href="docs/ebpf.html">eBPF Observability</a></li>
                   <li><a href="docs/cli.html">CLI Reference</a></li>
                   <li><a href="docs/configuration.html">Configuration</a></li>
@@ -80,13 +137,14 @@ jobs:
                   <li><a href="api/zernel_scheduler/index.html">zernel-scheduler</a></li>
                   <li><a href="api/zernel_ebpf/index.html">zernel-ebpf</a></li>
                   <li><a href="api/zernel/index.html">zernel-cli</a></li>
+                  <li><a href="api/zernel_dashboard/index.html">zernel-dashboard</a></li>
                 </ul>
               </div>
             </div>
-            <p style="margin-top: 40px; color: #666;">Copyright &copy; 2026 Dyber, Inc.</p>
+            <footer>Zernel — Copyright &copy; 2026 <a href="https://dyber.io">Dyber, Inc.</a></footer>
           </body>
           </html>
-          HTML
+          HTMLEOF
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
@@ -105,5 +163,3 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
         continue-on-error: true
-        # Note: Requires GitHub Pages to be enabled in repo Settings > Pages
-        # Set source to "GitHub Actions" at https://github.com/dyber-pqc/Zernel/settings/pages
