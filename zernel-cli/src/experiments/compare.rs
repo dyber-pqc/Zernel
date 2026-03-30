@@ -21,8 +21,16 @@ pub fn compare(a: &Experiment, b: &Experiment) -> String {
     if !all_keys.is_empty() {
         out.push_str("Hyperparameters:\n");
         for key in &all_keys {
-            let va = a.hyperparams.get(key).map(|v| v.to_string()).unwrap_or_default();
-            let vb = b.hyperparams.get(key).map(|v| v.to_string()).unwrap_or_default();
+            let va = a
+                .hyperparams
+                .get(key)
+                .map(|v| v.to_string())
+                .unwrap_or_default();
+            let vb = b
+                .hyperparams
+                .get(key)
+                .map(|v| v.to_string())
+                .unwrap_or_default();
             if va != vb {
                 out.push_str(&format!("  {key}: {va} -> {vb}\n"));
             }
@@ -31,12 +39,7 @@ pub fn compare(a: &Experiment, b: &Experiment) -> String {
     }
 
     // Metrics diff
-    let all_metrics: BTreeSet<_> = a
-        .metrics
-        .keys()
-        .chain(b.metrics.keys())
-        .cloned()
-        .collect();
+    let all_metrics: BTreeSet<_> = a.metrics.keys().chain(b.metrics.keys()).cloned().collect();
 
     if !all_metrics.is_empty() {
         out.push_str("Metrics:\n");

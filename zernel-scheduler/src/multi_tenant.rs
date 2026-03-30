@@ -117,8 +117,8 @@ impl TenantScheduler {
             return 1.0;
         }
 
-        (tenant.gpu_count as f32) / (self.total_gpus as f32)
-            * self.tenants.len() as f32 // normalize so average weight = 1.0
+        (tenant.gpu_count as f32) / (self.total_gpus as f32) * self.tenants.len() as f32
+        // normalize so average weight = 1.0
     }
 
     /// Compute effective priority for a pid, combining phase priority with tenant weight.

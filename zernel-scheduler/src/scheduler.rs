@@ -47,11 +47,7 @@ pub struct ZernelScheduler {
 impl ZernelScheduler {
     pub fn new(config: SchedulerConfig) -> Self {
         let phase_config = (&config.phase_detection).into();
-        let numa = if config.numa.enabled {
-            NumaTopology::detect()
-        } else {
-            NumaTopology::detect() // still detect, just don't use for affinity
-        };
+        let numa = NumaTopology::detect();
 
         info!(
             numa_nodes = numa.nodes.len(),
@@ -224,10 +220,13 @@ mod tests {
     fn register_and_schedule() {
         let mut sched = default_sched();
         sched.register_task(100, true, Some(0));
-        sched.update_task(100, TaskUpdate {
-            gpu_utilization: Some(95),
-            ..Default::default()
-        });
+        sched.update_task(
+            100,
+            TaskUpdate {
+                gpu_utilization: Some(95),
+                ..Default::default()
+            },
+        );
 
         let decision = sched.schedule(100, 1000);
         assert_eq!(decision.priority, -5); // GpuCompute
@@ -238,11 +237,14 @@ mod tests {
     fn data_loading_gets_high_priority() {
         let mut sched = default_sched();
         sched.register_task(100, true, Some(0));
-        sched.update_task(100, TaskUpdate {
-            io_wait_fraction: Some(0.5),
-            gpu_utilization: Some(5),
-            ..Default::default()
-        });
+        sched.update_task(
+            100,
+            TaskUpdate {
+                io_wait_fraction: Some(0.5),
+                gpu_utilization: Some(5),
+                ..Default::default()
+            },
+        );
 
         let decision = sched.schedule(100, 1000);
         assert_eq!(decision.priority, 10);

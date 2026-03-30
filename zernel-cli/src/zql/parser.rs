@@ -1,11 +1,11 @@
 // Copyright (C) 2026 Dyber, Inc. — Proprietary
 
-/// ZQL — Zernel Query Language
-///
-/// A SQL-like query language for querying experiments, models, and telemetry.
-///
-/// Example:
-///   SELECT name, loss FROM experiments WHERE loss < 1.5 ORDER BY loss ASC LIMIT 10;
+// ZQL — Zernel Query Language
+//
+// A SQL-like query language for querying experiments, models, and telemetry.
+//
+// Example:
+//   SELECT name, loss FROM experiments WHERE loss < 1.5 ORDER BY loss ASC LIMIT 10;
 
 use nom::{
     branch::alt,
@@ -75,10 +75,7 @@ fn identifier(input: &str) -> IResult<&str, String> {
 fn select_clause(input: &str) -> IResult<&str, Vec<String>> {
     let (input, _) = tag_no_case("SELECT")(input)?;
     let (input, _) = multispace1(input)?;
-    separated_list1(
-        tuple((multispace0, char(','), multispace0)),
-        identifier,
-    )(input)
+    separated_list1(tuple((multispace0, char(','), multispace0)), identifier)(input)
 }
 
 fn from_clause(input: &str) -> IResult<&str, String> {
@@ -100,19 +97,12 @@ fn compare_op(input: &str) -> IResult<&str, CompareOp> {
 }
 
 fn quoted_string(input: &str) -> IResult<&str, String> {
-    let (input, s) = delimited(
-        char('\''),
-        take_while1(|c: char| c != '\''),
-        char('\''),
-    )(input)?;
+    let (input, s) = delimited(char('\''), take_while1(|c: char| c != '\''), char('\''))(input)?;
     Ok((input, s.to_string()))
 }
 
 fn value(input: &str) -> IResult<&str, Value> {
-    alt((
-        map(quoted_string, Value::Text),
-        map(double, Value::Number),
-    ))(input)
+    alt((map(quoted_string, Value::Text), map(double, Value::Number)))(input)
 }
 
 fn condition(input: &str) -> IResult<&str, Condition> {
@@ -121,7 +111,14 @@ fn condition(input: &str) -> IResult<&str, Condition> {
     let (input, op) = compare_op(input)?;
     let (input, _) = multispace0(input)?;
     let (input, val) = value(input)?;
-    Ok((input, Condition { field, op, value: val }))
+    Ok((
+        input,
+        Condition {
+            field,
+            op,
+            value: val,
+        },
+    ))
 }
 
 fn where_clause(input: &str) -> IResult<&str, WhereClause> {

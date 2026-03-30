@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 
 /// The detected phase of an ML workload.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub enum WorkloadPhase {
     /// High I/O, many threads, CPU-intensive preprocessing.
     DataLoading,
@@ -14,14 +14,11 @@ pub enum WorkloadPhase {
     /// Short CPU burst after GPU compute — optimizer step.
     OptimizerStep,
     /// Unknown phase — fall back to CFS-equivalent behavior.
+    #[default]
     Unknown,
 }
 
-impl Default for WorkloadPhase {
-    fn default() -> Self {
-        Self::Unknown
-    }
-}
+// Default derived automatically — Unknown is the first variant via #[default].
 
 impl std::fmt::Display for WorkloadPhase {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

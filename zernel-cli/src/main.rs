@@ -1,5 +1,9 @@
 // Copyright (C) 2026 Dyber, Inc. — Proprietary
 
+// Allow dead code: telemetry client, ZQL schema, and display helpers are
+// public API surface consumed as zerneld integration progresses.
+#![allow(dead_code)]
+
 mod commands;
 mod experiments;
 mod telemetry;
@@ -70,9 +74,7 @@ enum Commands {
 #[tokio::main]
 async fn main() -> Result<()> {
     tracing_subscriber::fmt()
-        .with_env_filter(
-            std::env::var("ZERNEL_LOG").unwrap_or_else(|_| "zernel=warn".into()),
-        )
+        .with_env_filter(std::env::var("ZERNEL_LOG").unwrap_or_else(|_| "zernel=warn".into()))
         .init();
 
     let cli = Cli::parse();

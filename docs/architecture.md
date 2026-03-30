@@ -8,20 +8,20 @@ Zernel is structured as five discrete layers. Each layer is independently valuab
 
 ```
 +---------------------------------------------------------------------+
-|  LAYER 5: Zernel CLI IDE + Developer Environment                     |
+|  LAYER 5: Zernel CLI IDE + Developer Environment                    |
 |  zernel-cli crate | Proprietary license                             |
 +---------------------------------------------------------------------+
-|  LAYER 4: eBPF Observability Layer (zerneld)                         |
+|  LAYER 4: eBPF Observability Layer (zerneld)                        |
 |  zernel-ebpf crate | GPL-2.0                                        |
 +---------------------------------------------------------------------+
-|  LAYER 3: sched_ext ML Scheduler                                     |
-|  zernel-scheduler crate | GPL-2.0                                    |
+|  LAYER 3: sched_ext ML Scheduler                                    |
+|  zernel-scheduler crate | GPL-2.0                                   |
 +---------------------------------------------------------------------+
-|  LAYER 2: Zernel Kernel Configuration + Tuning                       |
-|  distro/ directory | GPL-2.0                                         |
+|  LAYER 2: Zernel Kernel Configuration + Tuning                      |
+|  distro/ directory | GPL-2.0                                        |
 +---------------------------------------------------------------------+
-|  LAYER 1: Linux Kernel (6.12+) + NVIDIA Open Drivers                 |
-|  Upstream, not owned by Zernel                                       |
+|  LAYER 1: Linux Kernel (6.12+) + NVIDIA Open Drivers                |
+|  Upstream, not owned by Zernel                                      |
 +---------------------------------------------------------------------+
 ```
 

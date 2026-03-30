@@ -4,6 +4,12 @@
 //
 // Userspace component: maintains per-task state, runs phase detection,
 // writes scheduling decisions to BPF maps, exports telemetry.
+//
+// Allow dead code: public APIs consumed as development progresses.
+#![allow(dead_code)]
+
+// Userspace component: maintains per-task state, runs phase detection,
+// writes scheduling decisions to BPF maps, exports telemetry.
 
 mod config;
 mod multi_tenant;
@@ -62,31 +68,40 @@ async fn main() -> Result<()> {
     sched.register_task(1000, true, Some(0));
 
     // Phase 1: Data loading
-    sched.update_task(1000, scheduler::TaskUpdate {
-        io_wait_fraction: Some(0.6),
-        gpu_utilization: Some(5),
-        ..Default::default()
-    });
+    sched.update_task(
+        1000,
+        scheduler::TaskUpdate {
+            io_wait_fraction: Some(0.6),
+            gpu_utilization: Some(5),
+            ..Default::default()
+        },
+    );
     let d = sched.schedule(1000, 1_000_000);
     info!(phase = "DataLoading", priority = d.priority, cpu = ?d.preferred_cpu, "decision");
 
     // Phase 2: GPU compute
-    sched.update_task(1000, scheduler::TaskUpdate {
-        io_wait_fraction: Some(0.01),
-        gpu_utilization: Some(96),
-        cpu_burst_duration_ns: Some(0),
-        ..Default::default()
-    });
+    sched.update_task(
+        1000,
+        scheduler::TaskUpdate {
+            io_wait_fraction: Some(0.01),
+            gpu_utilization: Some(96),
+            cpu_burst_duration_ns: Some(0),
+            ..Default::default()
+        },
+    );
     let d = sched.schedule(1000, 5_000_000);
     info!(phase = "GpuCompute", priority = d.priority, "decision");
 
     // Phase 3: Optimizer step
-    sched.update_task(1000, scheduler::TaskUpdate {
-        gpu_utilization: Some(10),
-        cpu_burst_duration_ns: Some(2_000_000),
-        last_gpu_sync_ns: Some(4_900_000),
-        ..Default::default()
-    });
+    sched.update_task(
+        1000,
+        scheduler::TaskUpdate {
+            gpu_utilization: Some(10),
+            cpu_burst_duration_ns: Some(2_000_000),
+            last_gpu_sync_ns: Some(4_900_000),
+            ..Default::default()
+        },
+    );
     let d = sched.schedule(1000, 8_000_000);
     info!(phase = "OptimizerStep", priority = d.priority, "decision");
 

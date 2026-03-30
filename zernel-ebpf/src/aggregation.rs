@@ -34,7 +34,10 @@ impl AggregatedMetrics {
 
     /// Record an NCCL collective duration.
     pub fn record_nccl(&mut self, op: &str, duration_ns: u64) {
-        self.nccl_duration.entry(op.to_string()).or_default().record(duration_ns);
+        self.nccl_duration
+            .entry(op.to_string())
+            .or_default()
+            .record(duration_ns);
     }
 
     /// Record a DataLoader wait time.
@@ -192,7 +195,7 @@ impl LatencyHistogram {
         self.samples.push(value_ns);
 
         // Recompute percentiles every 100 samples or on first 10
-        if self.samples.len() <= 10 || self.samples.len() % 100 == 0 {
+        if self.samples.len() <= 10 || self.samples.len().is_multiple_of(100) {
             self.recompute_percentiles();
         }
     }

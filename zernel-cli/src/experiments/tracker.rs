@@ -23,13 +23,25 @@ impl MetricExtractor {
     pub fn new() -> Self {
         let patterns = vec![
             ("loss", r"(?i)\bloss[=:\s]+([0-9]+\.?[0-9]*)"),
-            ("accuracy", r"(?i)\b(?:accuracy|acc)[=:\s]+([0-9]+\.?[0-9]*)"),
+            (
+                "accuracy",
+                r"(?i)\b(?:accuracy|acc)[=:\s]+([0-9]+\.?[0-9]*)",
+            ),
             ("grad_norm", r"(?i)\bgrad_norm[=:\s]+([0-9]+\.?[0-9]*)"),
-            ("learning_rate", r"(?i)\b(?:learning_rate|lr)[=:\s]+([0-9]+\.?[0-9eE\-]*)"),
-            ("throughput", r"(?i)\b(?:throughput|samples/s|it/s)[=:\s]+([0-9]+\.?[0-9]*)"),
+            (
+                "learning_rate",
+                r"(?i)\b(?:learning_rate|lr)[=:\s]+([0-9]+\.?[0-9eE\-]*)",
+            ),
+            (
+                "throughput",
+                r"(?i)\b(?:throughput|samples/s|it/s)[=:\s]+([0-9]+\.?[0-9]*)",
+            ),
             ("epoch", r"(?i)\bepoch[=:\s]+([0-9]+\.?[0-9]*)"),
             ("step", r"(?i)\b(?:step|global_step)[=:\s]+([0-9]+)"),
-            ("perplexity", r"(?i)\b(?:perplexity|ppl)[=:\s]+([0-9]+\.?[0-9]*)"),
+            (
+                "perplexity",
+                r"(?i)\b(?:perplexity|ppl)[=:\s]+([0-9]+\.?[0-9]*)",
+            ),
             ("eval_loss", r"(?i)\beval_loss[=:\s]+([0-9]+\.?[0-9]*)"),
         ];
 

@@ -94,7 +94,7 @@ pub async fn run(script: &str, args: &[String]) -> Result<()> {
                         }
                         lines_processed += 1;
 
-                        if lines_processed % 10 == 0 {
+                        if lines_processed.is_multiple_of(10) {
                             if let Some(ref s) = store {
                                 let _ = s.update_metrics(&exp_id_clone, &latest_metrics);
                             }
@@ -147,7 +147,7 @@ pub async fn run(script: &str, args: &[String]) -> Result<()> {
     if !latest_metrics.is_empty() {
         println!("  Metrics:");
         let mut sorted: Vec<_> = latest_metrics.iter().collect();
-        sorted.sort_by_key(|(k, _)| k.clone());
+        sorted.sort_by_key(|(k, _)| (*k).clone());
         for (k, v) in sorted {
             println!("    {k}: {v:.4}");
         }

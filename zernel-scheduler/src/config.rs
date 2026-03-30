@@ -6,7 +6,8 @@ use serde::{Deserialize, Serialize};
 use std::path::Path;
 
 /// Top-level scheduler configuration, loaded from /etc/zernel/scheduler.toml.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(default)]
 pub struct SchedulerConfig {
     #[serde(default)]
     pub general: GeneralConfig,
@@ -140,17 +141,7 @@ impl Default for TelemetryConfig {
     }
 }
 
-impl Default for SchedulerConfig {
-    fn default() -> Self {
-        Self {
-            general: GeneralConfig::default(),
-            phase_detection: PhaseDetectionConfig::default(),
-            numa: NumaConfig::default(),
-            multi_tenant: MultiTenantConfig::default(),
-            telemetry: TelemetryConfig::default(),
-        }
-    }
-}
+// Default is derived via #[serde(default)] on the struct fields.
 
 impl SchedulerConfig {
     /// Load config from a TOML file, falling back to defaults for missing fields.

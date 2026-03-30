@@ -19,11 +19,7 @@ pub struct WebSocketServer {
 }
 
 impl WebSocketServer {
-    pub fn new(
-        metrics: Arc<RwLock<AggregatedMetrics>>,
-        port: u16,
-        push_interval_ms: u64,
-    ) -> Self {
+    pub fn new(metrics: Arc<RwLock<AggregatedMetrics>>, port: u16, push_interval_ms: u64) -> Self {
         Self {
             metrics,
             port,
@@ -75,7 +71,7 @@ async fn handle_connection(
                     let m = metrics.read().await;
                     m.to_ws_snapshot()
                 };
-                let msg = Message::Text(snapshot.to_string().into());
+                let msg = Message::Text(snapshot.to_string());
                 if write.send(msg).await.is_err() {
                     break;
                 }

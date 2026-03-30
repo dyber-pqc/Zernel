@@ -66,7 +66,8 @@ pub fn export_telemetry(scheduler: &ZernelScheduler) -> SchedulerTelemetry {
         }
     }
 
-    let total_time = total_data_loading + total_gpu_compute + total_nccl + total_optimizer + total_unknown;
+    let total_time =
+        total_data_loading + total_gpu_compute + total_nccl + total_optimizer + total_unknown;
     let pct = if total_time > 0 {
         PhaseTimePct {
             data_loading: total_data_loading as f64 / total_time as f64 * 100.0,

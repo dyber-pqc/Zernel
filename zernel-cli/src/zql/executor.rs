@@ -133,10 +133,7 @@ pub fn execute(query: &str) -> Result<String> {
     Ok(out)
 }
 
-fn get_sortable_value(
-    exp: &crate::experiments::store::Experiment,
-    field: &str,
-) -> f64 {
+fn get_sortable_value(exp: &crate::experiments::store::Experiment, field: &str) -> f64 {
     match field {
         "name" => 0.0, // string sort not supported for f64, but works for basic ordering
         _ => exp.metrics.get(field).copied().unwrap_or(f64::MAX),

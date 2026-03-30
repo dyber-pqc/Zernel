@@ -111,7 +111,10 @@ impl NumaTopology {
                 .unwrap_or_default()
         } else {
             // No NUMA info — return all CPUs
-            self.nodes.iter().flat_map(|n| n.cpu_ids.iter().copied()).collect()
+            self.nodes
+                .iter()
+                .flat_map(|n| n.cpu_ids.iter().copied())
+                .collect()
         }
     }
 
@@ -120,7 +123,11 @@ impl NumaTopology {
     pub fn select_cpu(&self, gpu_id: Option<u32>, cpu_loads: &HashMap<u32, f32>) -> u32 {
         let preferred_cpus = match gpu_id {
             Some(gid) => self.cpus_for_gpu(gid),
-            None => self.nodes.iter().flat_map(|n| n.cpu_ids.iter().copied()).collect(),
+            None => self
+                .nodes
+                .iter()
+                .flat_map(|n| n.cpu_ids.iter().copied())
+                .collect(),
         };
 
         // Pick the CPU with lowest load from preferred set
@@ -255,8 +262,16 @@ mod tests {
     fn cpus_for_gpu_with_mapping() {
         let topo = NumaTopology {
             nodes: vec![
-                NumaNode { node_id: 0, cpu_ids: vec![0, 1, 2, 3], memory_mb: 16384 },
-                NumaNode { node_id: 1, cpu_ids: vec![4, 5, 6, 7], memory_mb: 16384 },
+                NumaNode {
+                    node_id: 0,
+                    cpu_ids: vec![0, 1, 2, 3],
+                    memory_mb: 16384,
+                },
+                NumaNode {
+                    node_id: 1,
+                    cpu_ids: vec![4, 5, 6, 7],
+                    memory_mb: 16384,
+                },
             ],
             gpu_node_map: HashMap::from([(0, 0), (1, 1)]),
         };

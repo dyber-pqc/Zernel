@@ -183,10 +183,11 @@ pub async fn run(cmd: ModelCommands) -> Result<()> {
                 return Ok(());
             }
 
-            println!(
-                "{:<20} {:<10} {:<12} {:>10} {}",
+            let header = format!(
+                "{:<20} {:<10} {:<12} {:>10} {:>10}",
                 "Name", "Version", "Tag", "Size", "Saved"
             );
+            println!("{header}");
             println!("{}", "-".repeat(70));
 
             for entry in &registry {
@@ -201,10 +202,12 @@ pub async fn run(cmd: ModelCommands) -> Result<()> {
                 );
             }
         }
-        ModelCommands::Deploy { model, target, port } => {
-            let (name, tag) = model
-                .split_once(':')
-                .unwrap_or((&model, "latest"));
+        ModelCommands::Deploy {
+            model,
+            target,
+            port,
+        } => {
+            let (name, tag) = model.split_once(':').unwrap_or((&model, "latest"));
 
             let registry = load_registry();
             let entry = registry
@@ -212,11 +215,17 @@ pub async fn run(cmd: ModelCommands) -> Result<()> {
                 .find(|e| e.name == name && e.tag == tag)
                 .ok_or_else(|| anyhow::anyhow!("model not found: {name}:{tag}"))?;
 
-            println!("Deploying {name}:{tag} (v{}) to {target} on port {port}", entry.version);
+            println!(
+                "Deploying {name}:{tag} (v{}) to {target} on port {port}",
+                entry.version
+            );
             println!("  Source: {}", entry.source_path);
             println!();
             println!("(inference server deployment not yet implemented)");
-            println!("  For now, use: vllm serve {} --port {port}", entry.source_path);
+            println!(
+                "  For now, use: vllm serve {} --port {port}",
+                entry.source_path
+            );
         }
     }
     Ok(())

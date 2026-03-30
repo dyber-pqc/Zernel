@@ -41,12 +41,12 @@ pub async fn run_simulator(metrics: Arc<RwLock<AggregatedMetrics>>, interval_ms:
 
         // Simulate CUDA launch latency (100-500us, with occasional spikes)
         let base_latency_ns = 142_000u64; // 142us baseline
-        let spike = if tick % 50 == 0 { 500_000 } else { 0 };
+        let spike = if tick.is_multiple_of(50) { 500_000 } else { 0 };
         let jitter = ((tick * 31) % 200) * 1000;
         m.record_cuda_latency(1000, base_latency_ns + jitter + spike);
 
         // Simulate NCCL all-reduce (every ~10 ticks, 30-70ms)
-        if tick % 10 == 0 {
+        if tick.is_multiple_of(10) {
             let duration_ns = 34_000_000 + ((tick * 17) % 30) * 1_000_000;
             m.record_nccl("all_reduce", duration_ns);
         }

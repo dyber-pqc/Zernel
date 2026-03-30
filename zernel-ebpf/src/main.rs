@@ -2,6 +2,10 @@
 //
 // zerneld — Zernel eBPF Observability Daemon
 //
+// Allow dead code: probe consumers and event types are public API
+// surface consumed when BPF probes are wired up on Linux.
+#![allow(dead_code)]
+
 // Loads eBPF probes, consumes events from ring buffers, aggregates metrics,
 // and exposes them via Prometheus endpoint and WebSocket for the CLI IDE.
 
@@ -26,9 +30,7 @@ const PUSH_INTERVAL_MS: u64 = 1000;
 #[tokio::main]
 async fn main() -> Result<()> {
     tracing_subscriber::fmt()
-        .with_env_filter(
-            std::env::var("ZERNEL_LOG").unwrap_or_else(|_| "zernel_ebpf=info".into()),
-        )
+        .with_env_filter(std::env::var("ZERNEL_LOG").unwrap_or_else(|_| "zernel_ebpf=info".into()))
         .init();
 
     info!("zerneld v{}", env!("CARGO_PKG_VERSION"));
@@ -51,15 +53,13 @@ async fn main() -> Result<()> {
 
     // Alert engine
     let alert_metrics = Arc::clone(&metrics);
-    let alert_engine = alerts::AlertEngine::new(vec![
-        alerts::AlertRule {
-            name: "gpu_oom_warning".into(),
-            metric: "gpu_memory_used_pct".into(),
-            threshold: 95.0,
-            comparison: alerts::Comparison::GreaterThan,
-            action: alerts::AlertAction::Log,
-        },
-    ]);
+    let alert_engine = alerts::AlertEngine::new(vec![alerts::AlertRule {
+        name: "gpu_oom_warning".into(),
+        metric: "gpu_memory_used_pct".into(),
+        threshold: 95.0,
+        comparison: alerts::Comparison::GreaterThan,
+        action: alerts::AlertAction::Log,
+    }]);
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(5));
         loop {
@@ -78,7 +78,8 @@ async fn main() -> Result<()> {
 
     // Start servers
     let metrics_srv = metrics_server::MetricsServer::new(Arc::clone(&metrics), METRICS_PORT);
-    let ws_srv = websocket_server::WebSocketServer::new(Arc::clone(&metrics), WS_PORT, PUSH_INTERVAL_MS);
+    let ws_srv =
+        websocket_server::WebSocketServer::new(Arc::clone(&metrics), WS_PORT, PUSH_INTERVAL_MS);
 
     info!(
         metrics_port = METRICS_PORT,

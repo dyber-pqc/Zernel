@@ -140,7 +140,9 @@ impl ExperimentStore {
     }
 
     pub fn delete(&self, id: &str) -> Result<bool> {
-        let count = self.conn.execute("DELETE FROM experiments WHERE id = ?1", [id])?;
+        let count = self
+            .conn
+            .execute("DELETE FROM experiments WHERE id = ?1", [id])?;
         Ok(count > 0)
     }
 
@@ -216,7 +218,9 @@ mod tests {
     fn finish_updates_status() {
         let (store, _dir) = temp_store();
         store.insert(&make_experiment("exp-001")).unwrap();
-        store.finish("exp-001", ExperimentStatus::Done, 123.4).unwrap();
+        store
+            .finish("exp-001", ExperimentStatus::Done, 123.4)
+            .unwrap();
 
         let exp = store.get("exp-001").unwrap().unwrap();
         assert_eq!(exp.status, ExperimentStatus::Done);

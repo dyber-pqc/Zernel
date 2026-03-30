@@ -45,10 +45,30 @@ impl DemoState {
         Self {
             tick: 0,
             gpus: vec![
-                GpuInfo { id: 0, util: 94, mem_used_gb: 78.2, mem_total_gb: 80.0 },
-                GpuInfo { id: 1, util: 91, mem_used_gb: 77.8, mem_total_gb: 80.0 },
-                GpuInfo { id: 2, util: 96, mem_used_gb: 79.1, mem_total_gb: 80.0 },
-                GpuInfo { id: 3, util: 93, mem_used_gb: 78.9, mem_total_gb: 80.0 },
+                GpuInfo {
+                    id: 0,
+                    util: 94,
+                    mem_used_gb: 78.2,
+                    mem_total_gb: 80.0,
+                },
+                GpuInfo {
+                    id: 1,
+                    util: 91,
+                    mem_used_gb: 77.8,
+                    mem_total_gb: 80.0,
+                },
+                GpuInfo {
+                    id: 2,
+                    util: 96,
+                    mem_used_gb: 79.1,
+                    mem_total_gb: 80.0,
+                },
+                GpuInfo {
+                    id: 3,
+                    util: 93,
+                    mem_used_gb: 78.9,
+                    mem_total_gb: 80.0,
+                },
             ],
             loss: 1.8,
             step: 0,
@@ -108,11 +128,11 @@ pub async fn run() -> Result<()> {
             let chunks = Layout::default()
                 .direction(Direction::Vertical)
                 .constraints([
-                    Constraint::Length(3),  // title
-                    Constraint::Length(6),  // GPU bars
-                    Constraint::Length(5),  // training metrics
-                    Constraint::Length(6),  // eBPF telemetry
-                    Constraint::Min(3),     // scheduler
+                    Constraint::Length(3), // title
+                    Constraint::Length(6), // GPU bars
+                    Constraint::Length(5), // training metrics
+                    Constraint::Length(6), // eBPF telemetry
+                    Constraint::Min(3),    // scheduler
                 ])
                 .split(f.area());
 
@@ -121,7 +141,9 @@ pub async fn run() -> Result<()> {
             let title = Paragraph::new(Line::from(vec![
                 Span::styled(
                     " Zernel Watch ",
-                    Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+                    Style::default()
+                        .fg(Color::Cyan)
+                        .add_modifier(Modifier::BOLD),
                 ),
                 Span::raw(format!(
                     "  job: demo-training  |  step: {}/{}  |  elapsed: {}m",
@@ -132,8 +154,11 @@ pub async fn run() -> Result<()> {
             f.render_widget(title, chunks[0]);
 
             // GPU utilization
-            let gpu_constraints: Vec<Constraint> =
-                state.gpus.iter().map(|_| Constraint::Percentage(25)).collect();
+            let gpu_constraints: Vec<Constraint> = state
+                .gpus
+                .iter()
+                .map(|_| Constraint::Percentage(25))
+                .collect();
             let gpu_chunks = Layout::default()
                 .direction(Direction::Horizontal)
                 .constraints(gpu_constraints)
@@ -180,8 +205,11 @@ pub async fn run() -> Result<()> {
                     Span::raw(format!("{:.1}%", progress * 100.0)),
                 ]),
             ];
-            let metrics = Paragraph::new(metrics_text)
-                .block(Block::default().title(" Training Metrics ").borders(Borders::ALL));
+            let metrics = Paragraph::new(metrics_text).block(
+                Block::default()
+                    .title(" Training Metrics ")
+                    .borders(Borders::ALL),
+            );
             f.render_widget(metrics, chunks[2]);
 
             // eBPF telemetry
@@ -195,8 +223,11 @@ pub async fn run() -> Result<()> {
                     state.nccl_p50_ms, state.nccl_p99_ms, state.pcie_gbps
                 )),
             ];
-            let telem = Paragraph::new(telem_text)
-                .block(Block::default().title(" eBPF Telemetry ").borders(Borders::ALL));
+            let telem = Paragraph::new(telem_text).block(
+                Block::default()
+                    .title(" eBPF Telemetry ")
+                    .borders(Borders::ALL),
+            );
             f.render_widget(telem, chunks[3]);
 
             // Scheduler phase
@@ -209,7 +240,12 @@ pub async fn run() -> Result<()> {
             };
             let sched_text = vec![Line::from(vec![
                 Span::raw(" Phase: "),
-                Span::styled(&state.phase, Style::default().fg(phase_color).add_modifier(Modifier::BOLD)),
+                Span::styled(
+                    &state.phase,
+                    Style::default()
+                        .fg(phase_color)
+                        .add_modifier(Modifier::BOLD),
+                ),
                 Span::raw("   [q] quit  [r] reset"),
             ])];
             let sched = Paragraph::new(sched_text)

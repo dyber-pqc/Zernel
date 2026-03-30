@@ -22,15 +22,42 @@ pub async fn run() -> Result<()> {
     println!();
 
     let checks: Vec<Check> = vec![
-        Check { name: "Operating System", check: check_os },
-        Check { name: "Python", check: check_python },
-        Check { name: "NVIDIA Driver", check: check_nvidia_driver },
-        Check { name: "CUDA Toolkit", check: check_cuda },
-        Check { name: "PyTorch", check: check_pytorch },
-        Check { name: "PyTorch CUDA", check: check_pytorch_cuda },
-        Check { name: "Git", check: check_git },
-        Check { name: "zerneld", check: check_zerneld },
-        Check { name: "Zernel DB", check: check_zernel_db },
+        Check {
+            name: "Operating System",
+            check: check_os,
+        },
+        Check {
+            name: "Python",
+            check: check_python,
+        },
+        Check {
+            name: "NVIDIA Driver",
+            check: check_nvidia_driver,
+        },
+        Check {
+            name: "CUDA Toolkit",
+            check: check_cuda,
+        },
+        Check {
+            name: "PyTorch",
+            check: check_pytorch,
+        },
+        Check {
+            name: "PyTorch CUDA",
+            check: check_pytorch_cuda,
+        },
+        Check {
+            name: "Git",
+            check: check_git,
+        },
+        Check {
+            name: "zerneld",
+            check: check_zerneld,
+        },
+        Check {
+            name: "Zernel DB",
+            check: check_zernel_db,
+        },
     ];
 
     let mut pass = 0;
@@ -61,9 +88,7 @@ pub async fn run() -> Result<()> {
     }
 
     println!();
-    println!(
-        "Results: {pass} passed, {warn} warnings, {fail} failed, {skip} skipped"
-    );
+    println!("Results: {pass} passed, {warn} warnings, {fail} failed, {skip} skipped");
 
     if fail > 0 {
         println!();
@@ -108,7 +133,10 @@ fn check_python() -> CheckResult {
 }
 
 fn check_nvidia_driver() -> CheckResult {
-    if let Some(output) = run_cmd("nvidia-smi", &["--query-gpu=driver_version", "--format=csv,noheader"]) {
+    if let Some(output) = run_cmd(
+        "nvidia-smi",
+        &["--query-gpu=driver_version", "--format=csv,noheader"],
+    ) {
         let version = output.lines().next().unwrap_or(&output);
         CheckResult::Pass(format!("driver v{version}"))
     } else {
@@ -129,15 +157,11 @@ fn check_cuda() -> CheckResult {
 }
 
 fn check_pytorch() -> CheckResult {
-    if let Some(version) = run_cmd(
-        "python3",
-        &["-c", "import torch; print(torch.__version__)"],
-    ) {
+    if let Some(version) = run_cmd("python3", &["-c", "import torch; print(torch.__version__)"]) {
         CheckResult::Pass(format!("PyTorch {version}"))
-    } else if let Some(version) = run_cmd(
-        "python",
-        &["-c", "import torch; print(torch.__version__)"],
-    ) {
+    } else if let Some(version) =
+        run_cmd("python", &["-c", "import torch; print(torch.__version__)"])
+    {
         CheckResult::Pass(format!("PyTorch {version}"))
     } else {
         CheckResult::Warn("PyTorch not installed".into())
@@ -146,8 +170,8 @@ fn check_pytorch() -> CheckResult {
 
 fn check_pytorch_cuda() -> CheckResult {
     let script = "import torch; print(torch.cuda.is_available(), torch.cuda.device_count() if torch.cuda.is_available() else 0)";
-    if let Some(output) = run_cmd("python3", &["-c", script])
-        .or_else(|| run_cmd("python", &["-c", script]))
+    if let Some(output) =
+        run_cmd("python3", &["-c", script]).or_else(|| run_cmd("python", &["-c", script]))
     {
         let parts: Vec<&str> = output.split_whitespace().collect();
         match parts.first().map(|s| s.as_ref()) {
@@ -179,9 +203,7 @@ fn check_zerneld() -> CheckResult {
     );
     match result {
         Ok(_) => CheckResult::Pass("running on port 9091".into()),
-        Err(_) => CheckResult::Warn(
-            "not running — start with: zernel-ebpf --simulate".into(),
-        ),
+        Err(_) => CheckResult::Warn("not running — start with: zernel-ebpf --simulate".into()),
     }
 }
 
@@ -190,9 +212,6 @@ fn check_zernel_db() -> CheckResult {
     if db_path.exists() {
         CheckResult::Pass(format!("{}", db_path.display()))
     } else {
-        CheckResult::Pass(format!(
-            "will be created at {}",
-            db_path.display()
-        ))
+        CheckResult::Pass(format!("will be created at {}", db_path.display()))
     }
 }

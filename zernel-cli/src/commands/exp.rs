@@ -45,10 +45,11 @@ pub async fn run(cmd: ExpCommands) -> Result<()> {
                 return Ok(());
             }
 
-            println!(
-                "{:<28} {:<24} {:<10} {:>10} {:>10} {}",
+            let header = format!(
+                "{:<28} {:<24} {:<10} {:>10} {:>10} {:>10}",
                 "ID", "Name", "Status", "Loss", "Acc", "Duration"
             );
+            println!("{header}");
             println!("{}", "-".repeat(95));
 
             for exp in &experiments {
@@ -64,7 +65,7 @@ pub async fn run(cmd: ExpCommands) -> Result<()> {
                     .unwrap_or_else(|| "-".into());
                 let duration = exp
                     .duration_secs
-                    .map(|d| format_duration(d))
+                    .map(format_duration)
                     .unwrap_or_else(|| "-".into());
 
                 println!(
@@ -92,7 +93,10 @@ pub async fn run(cmd: ExpCommands) -> Result<()> {
             println!("  Status:     {}", exp.status);
             println!("  Script:     {}", exp.script.as_deref().unwrap_or("-"));
             println!("  Git commit: {}", exp.git_commit.as_deref().unwrap_or("-"));
-            println!("  Created:    {}", exp.created_at.format("%Y-%m-%d %H:%M:%S UTC"));
+            println!(
+                "  Created:    {}",
+                exp.created_at.format("%Y-%m-%d %H:%M:%S UTC")
+            );
             if let Some(f) = exp.finished_at {
                 println!("  Finished:   {}", f.format("%Y-%m-%d %H:%M:%S UTC"));
             }
@@ -103,7 +107,7 @@ pub async fn run(cmd: ExpCommands) -> Result<()> {
             if !exp.hyperparams.is_empty() {
                 println!("\n  Hyperparameters:");
                 let mut sorted: Vec<_> = exp.hyperparams.iter().collect();
-                sorted.sort_by_key(|(k, _)| k.clone());
+                sorted.sort_by_key(|(k, _)| (*k).clone());
                 for (k, v) in sorted {
                     println!("    {k}: {v}");
                 }
@@ -112,7 +116,7 @@ pub async fn run(cmd: ExpCommands) -> Result<()> {
             if !exp.metrics.is_empty() {
                 println!("\n  Metrics:");
                 let mut sorted: Vec<_> = exp.metrics.iter().collect();
-                sorted.sort_by_key(|(k, _)| k.clone());
+                sorted.sort_by_key(|(k, _)| (*k).clone());
                 for (k, v) in sorted {
                     println!("    {k}: {v:.6}");
                 }
@@ -135,10 +139,6 @@ fn format_duration(secs: f64) -> String {
     } else if secs < 3600.0 {
         format!("{:.0}m {:.0}s", secs / 60.0, secs % 60.0)
     } else {
-        format!(
-            "{:.0}h {:.0}m",
-            secs / 3600.0,
-            (secs % 3600.0) / 60.0
-        )
+        format!("{:.0}h {:.0}m", secs / 3600.0, (secs % 3600.0) / 60.0)
     }
 }

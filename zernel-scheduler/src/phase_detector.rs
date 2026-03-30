@@ -100,10 +100,7 @@ impl PhaseDetector {
         }
 
         // NCCL collective detection (highest priority — on critical path)
-        if self.config.nccl_detection_enabled
-            && state.nccl_active
-            && state.futex_wait_count > 0
-        {
+        if self.config.nccl_detection_enabled && state.nccl_active && state.futex_wait_count > 0 {
             return WorkloadPhase::NcclCollective;
         }
 
