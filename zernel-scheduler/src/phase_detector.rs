@@ -1,15 +1,23 @@
 // Copyright (C) 2026 Dyber, Inc. — GPL-2.0
 
 use crate::task_state::{WorkloadPhase, ZernelTaskState};
+use serde::{Deserialize, Serialize};
 
 /// Thresholds for phase detection heuristics.
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PhaseDetectorConfig {
     /// I/O wait fraction above which we classify as DataLoading.
     pub io_wait_threshold: f32,
     /// Duration (ns) below which a CPU burst after GpuCompute is an OptimizerStep.
     pub optimizer_burst_max_ns: u64,
-    /// GPU utilization below which we suspect the GPU is idle (data starvation).
+    /// GPU utilization below which we suspect the GPU is idle.
     pub gpu_idle_threshold: u8,
+    /// GPU utilization above which we consider GPU actively computing.
+    pub gpu_active_threshold: u8,
+    /// Number of consecutive identical phase samples before committing transition.
+    pub phase_stability_count: u32,
+    /// Enable NCCL collective detection.
+    pub nccl_detection_enabled: bool,
 }
 
 impl Default for PhaseDetectorConfig {
@@ -18,31 +26,85 @@ impl Default for PhaseDetectorConfig {
             io_wait_threshold: 0.3,
             optimizer_burst_max_ns: 5_000_000, // 5ms
             gpu_idle_threshold: 10,
+            gpu_active_threshold: 80,
+            phase_stability_count: 3,
+            nccl_detection_enabled: false,
         }
     }
+}
+
+/// Tracks per-task phase stability to avoid flapping.
+#[derive(Debug, Default)]
+struct PhaseStabilityTracker {
+    /// The candidate phase we're observing.
+    candidate: Option<WorkloadPhase>,
+    /// How many consecutive times we've seen this candidate.
+    count: u32,
 }
 
 /// Detects the current workload phase for a given task based on runtime metrics.
 pub struct PhaseDetector {
     config: PhaseDetectorConfig,
+    /// Per-pid stability tracking to debounce phase transitions.
+    stability: std::collections::HashMap<u32, PhaseStabilityTracker>,
+    /// Phase transition counters for telemetry.
+    pub transition_count: u64,
 }
 
 impl PhaseDetector {
     pub fn new(config: PhaseDetectorConfig) -> Self {
-        Self { config }
+        Self {
+            config,
+            stability: std::collections::HashMap::new(),
+            transition_count: 0,
+        }
     }
 
     /// Classify the workload phase based on current task state.
-    ///
-    /// Detection heuristics:
-    /// - DataLoading: high io_wait fraction + low GPU utilization
-    /// - GpuCompute: blocked on cudaDeviceSynchronize (last_gpu_sync recent)
-    /// - NcclCollective: detected via NCCL shared memory + high futex activity
-    ///   (requires BPF uprobe data — placeholder for now)
-    /// - OptimizerStep: short CPU burst immediately after GpuCompute
-    pub fn detect(&self, state: &ZernelTaskState) -> WorkloadPhase {
+    /// Uses stability tracking to prevent rapid phase flapping.
+    pub fn detect(&mut self, state: &ZernelTaskState) -> WorkloadPhase {
+        let raw_phase = self.detect_raw(state);
+
+        if self.config.phase_stability_count <= 1 {
+            // Stability disabled — immediate transitions
+            if raw_phase != state.current_phase {
+                self.transition_count += 1;
+            }
+            return raw_phase;
+        }
+
+        let tracker = self.stability.entry(state.pid).or_default();
+
+        if tracker.candidate == Some(raw_phase) {
+            tracker.count += 1;
+        } else {
+            tracker.candidate = Some(raw_phase);
+            tracker.count = 1;
+        }
+
+        if tracker.count >= self.config.phase_stability_count {
+            if raw_phase != state.current_phase {
+                self.transition_count += 1;
+            }
+            raw_phase
+        } else {
+            // Not stable yet — keep current phase
+            state.current_phase
+        }
+    }
+
+    /// Raw phase classification without stability tracking.
+    fn detect_raw(&self, state: &ZernelTaskState) -> WorkloadPhase {
         if !state.is_ml_process {
             return WorkloadPhase::Unknown;
+        }
+
+        // NCCL collective detection (highest priority — on critical path)
+        if self.config.nccl_detection_enabled
+            && state.nccl_active
+            && state.futex_wait_count > 0
+        {
+            return WorkloadPhase::NcclCollective;
         }
 
         // High I/O wait + low GPU util → data loading
@@ -53,7 +115,9 @@ impl PhaseDetector {
         }
 
         // GPU highly utilized + low CPU burst → GPU compute phase
-        if state.gpu_utilization > 80 && state.cpu_burst_duration_ns == 0 {
+        if state.gpu_utilization > self.config.gpu_active_threshold
+            && state.cpu_burst_duration_ns == 0
+        {
             return WorkloadPhase::GpuCompute;
         }
 
@@ -65,11 +129,20 @@ impl PhaseDetector {
             return WorkloadPhase::OptimizerStep;
         }
 
-        // TODO: NCCL collective detection requires BPF uprobe data on
-        // ncclAllReduce/ncclBroadcast and futex activity tracking.
-        // Will be implemented when BPF probes are wired up.
+        // Medium I/O + medium GPU → probably data loading with prefetch overlap
+        if state.io_wait_fraction > self.config.io_wait_threshold * 0.5
+            && state.gpu_utilization < self.config.gpu_active_threshold
+            && state.gpu_utilization > self.config.gpu_idle_threshold
+        {
+            return WorkloadPhase::DataLoading;
+        }
 
         WorkloadPhase::Unknown
+    }
+
+    /// Remove stability tracking for a task.
+    pub fn remove_task(&mut self, pid: u32) {
+        self.stability.remove(&pid);
     }
 }
 
@@ -83,37 +156,108 @@ mod tests {
         s
     }
 
+    fn detector() -> PhaseDetector {
+        PhaseDetector::new(PhaseDetectorConfig {
+            phase_stability_count: 1, // disable stability for unit tests
+            ..Default::default()
+        })
+    }
+
     #[test]
     fn non_ml_process_is_unknown() {
-        let detector = PhaseDetector::new(PhaseDetectorConfig::default());
+        let mut det = detector();
         let state = make_state(1, false);
-        assert_eq!(detector.detect(&state), WorkloadPhase::Unknown);
+        assert_eq!(det.detect(&state), WorkloadPhase::Unknown);
     }
 
     #[test]
     fn high_io_wait_low_gpu_is_data_loading() {
-        let detector = PhaseDetector::new(PhaseDetectorConfig::default());
+        let mut det = detector();
         let mut state = make_state(1, true);
         state.io_wait_fraction = 0.5;
         state.gpu_utilization = 5;
-        assert_eq!(detector.detect(&state), WorkloadPhase::DataLoading);
+        assert_eq!(det.detect(&state), WorkloadPhase::DataLoading);
     }
 
     #[test]
     fn high_gpu_util_is_gpu_compute() {
-        let detector = PhaseDetector::new(PhaseDetectorConfig::default());
+        let mut det = detector();
         let mut state = make_state(1, true);
         state.gpu_utilization = 95;
         state.cpu_burst_duration_ns = 0;
-        assert_eq!(detector.detect(&state), WorkloadPhase::GpuCompute);
+        assert_eq!(det.detect(&state), WorkloadPhase::GpuCompute);
     }
 
     #[test]
     fn short_burst_after_sync_is_optimizer_step() {
-        let detector = PhaseDetector::new(PhaseDetectorConfig::default());
+        let mut det = detector();
         let mut state = make_state(1, true);
         state.cpu_burst_duration_ns = 2_000_000; // 2ms
         state.last_gpu_sync_ns = 1_000_000_000;
-        assert_eq!(detector.detect(&state), WorkloadPhase::OptimizerStep);
+        assert_eq!(det.detect(&state), WorkloadPhase::OptimizerStep);
+    }
+
+    #[test]
+    fn nccl_detection_when_enabled() {
+        let mut det = PhaseDetector::new(PhaseDetectorConfig {
+            nccl_detection_enabled: true,
+            phase_stability_count: 1,
+            ..Default::default()
+        });
+        let mut state = make_state(1, true);
+        state.nccl_active = true;
+        state.futex_wait_count = 10;
+        assert_eq!(det.detect(&state), WorkloadPhase::NcclCollective);
+    }
+
+    #[test]
+    fn nccl_detection_off_by_default() {
+        let mut det = detector();
+        let mut state = make_state(1, true);
+        state.nccl_active = true;
+        state.futex_wait_count = 10;
+        // Should NOT detect as NCCL since detection is disabled
+        assert_ne!(det.detect(&state), WorkloadPhase::NcclCollective);
+    }
+
+    #[test]
+    fn stability_prevents_flapping() {
+        let mut det = PhaseDetector::new(PhaseDetectorConfig {
+            phase_stability_count: 3,
+            ..Default::default()
+        });
+
+        let mut state = make_state(1, true);
+        state.current_phase = WorkloadPhase::Unknown;
+
+        // Set to data loading
+        state.io_wait_fraction = 0.5;
+        state.gpu_utilization = 5;
+
+        // First two detections should keep Unknown (not stable yet)
+        assert_eq!(det.detect(&state), WorkloadPhase::Unknown);
+        assert_eq!(det.detect(&state), WorkloadPhase::Unknown);
+        // Third detection commits the transition
+        assert_eq!(det.detect(&state), WorkloadPhase::DataLoading);
+    }
+
+    #[test]
+    fn overlapped_prefetch_detected_as_data_loading() {
+        let mut det = detector();
+        let mut state = make_state(1, true);
+        state.io_wait_fraction = 0.2; // moderate I/O
+        state.gpu_utilization = 50; // moderate GPU (prefetch overlap)
+        assert_eq!(det.detect(&state), WorkloadPhase::DataLoading);
+    }
+
+    #[test]
+    fn transition_counter_increments() {
+        let mut det = detector();
+        let mut state = make_state(1, true);
+        state.current_phase = WorkloadPhase::Unknown;
+        state.io_wait_fraction = 0.5;
+        state.gpu_utilization = 5;
+        det.detect(&state);
+        assert_eq!(det.transition_count, 1);
     }
 }

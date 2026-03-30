@@ -25,3 +25,10 @@ nom = "7"
 reqwest = { version = "0.12", features = ["json"] }
 tokio-tungstenite = "0.24"
 chrono = { version = "0.4", features = ["serde"] }
+regex = "1"
+uuid = { version = "1", features = ["v4"] }
+dirs = "6"
+tabled = "0.17"
+
+[dev-dependencies]
+tempfile = "3"

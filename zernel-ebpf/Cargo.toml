@@ -18,3 +18,9 @@ tokio.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 libbpf-rs = { version = "0.23", optional = true }
+hyper = { version = "1", features = ["server", "http1"] }
+hyper-util = { version = "0.1", features = ["tokio"] }
+http-body-util = "0.1"
+tokio-tungstenite = "0.24"
+futures-util = "0.3"
+toml = "0.8"
