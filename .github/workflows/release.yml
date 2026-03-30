@@ -36,19 +36,52 @@ jobs:
       - name: Build release binaries
         run: cargo build --workspace --release --target ${{ matrix.target }}
 
-      - name: Package binaries (tarball)
+      - name: Package binaries
         run: |
-          mkdir -p dist/${{ matrix.artifact }}
-          cp target/${{ matrix.target }}/release/zernel dist/${{ matrix.artifact }}/
-          cp target/${{ matrix.target }}/release/zernel-scheduler dist/${{ matrix.artifact }}/
-          cp target/${{ matrix.target }}/release/zernel-ebpf dist/${{ matrix.artifact }}/zerneld
-          cp README.md LICENSE LICENSE-ENTERPRISE dist/${{ matrix.artifact }}/
-          cp -r docs dist/${{ matrix.artifact }}/
-          cp -r distro dist/${{ matrix.artifact }}/
-          tar -czf ${{ matrix.artifact }}.tar.gz -C dist ${{ matrix.artifact }}
+          mkdir -p dist/${{ matrix.artifact }}/{bin,config,docs,systemd,scripts}
 
-      - name: Package binaries (zip)
-        run: |
+          # Binaries
+          cp target/${{ matrix.target }}/release/zernel dist/${{ matrix.artifact }}/bin/
+          cp target/${{ matrix.target }}/release/zernel-scheduler dist/${{ matrix.artifact }}/bin/
+          cp target/${{ matrix.target }}/release/zernel-ebpf dist/${{ matrix.artifact }}/bin/zerneld
+          cp target/${{ matrix.target }}/release/zernel-dashboard dist/${{ matrix.artifact }}/bin/
+
+          # Configuration
+          cp distro/sysctl/99-zernel.conf dist/${{ matrix.artifact }}/config/
+          cp distro/kernel/config/zernel-x86_64 dist/${{ matrix.artifact }}/config/
+
+          # systemd services
+          cp distro/systemd/*.service dist/${{ matrix.artifact }}/systemd/
+
+          # Scripts
+          cp distro/scripts/setup-ml-stack.sh dist/${{ matrix.artifact }}/scripts/
+          cp distro/scripts/zernel-install dist/${{ matrix.artifact }}/scripts/
+          cp scripts/quickstart-wsl.sh dist/${{ matrix.artifact }}/scripts/
+
+          # Documentation
+          cp -r docs dist/${{ matrix.artifact }}/docs/
+          cp README.md LICENSE LICENSE-ENTERPRISE SECURITY.md dist/${{ matrix.artifact }}/
+
+          # Install script
+          cat > dist/${{ matrix.artifact }}/install.sh << 'INSTALLER'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          echo "Installing Zernel..."
+          sudo cp bin/zernel /usr/local/bin/
+          sudo cp bin/zernel-scheduler /usr/local/bin/
+          sudo cp bin/zerneld /usr/local/bin/
+          sudo cp bin/zernel-dashboard /usr/local/bin/
+          sudo cp scripts/zernel-install /usr/local/bin/
+          sudo mkdir -p /etc/zernel
+          sudo cp config/99-zernel.conf /etc/sysctl.d/ 2>/dev/null || true
+          sudo cp systemd/*.service /etc/systemd/system/ 2>/dev/null || true
+          sudo systemctl daemon-reload 2>/dev/null || true
+          echo "Zernel installed. Run: zernel doctor"
+          INSTALLER
+          chmod +x dist/${{ matrix.artifact }}/install.sh
+
+          # Create tarball and zip
+          tar -czf ${{ matrix.artifact }}.tar.gz -C dist ${{ matrix.artifact }}
           cd dist && zip -r ../${{ matrix.artifact }}.zip ${{ matrix.artifact }}
 
       - name: Upload artifacts
@@ -73,12 +106,14 @@ jobs:
 
       - name: Create source archives
         run: |
-          git archive --format=tar.gz --prefix=zernel-${GITHUB_REF_NAME#v}/ HEAD > zernel-${GITHUB_REF_NAME#v}-source.tar.gz
-          git archive --format=zip --prefix=zernel-${GITHUB_REF_NAME#v}/ HEAD > zernel-${GITHUB_REF_NAME#v}-source.zip
+          VERSION=${GITHUB_REF_NAME#v}
+          git archive --format=tar.gz --prefix=zernel-${VERSION}/ HEAD > zernel-${VERSION}-source.tar.gz
+          git archive --format=zip --prefix=zernel-${VERSION}/ HEAD > zernel-${VERSION}-source.zip
 
       - name: Generate checksums
         run: |
           sha256sum *.tar.gz *.zip > SHA256SUMS.txt
+          cat SHA256SUMS.txt
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
@@ -92,45 +127,94 @@ jobs:
             *.zip
             SHA256SUMS.txt
           body: |
-            ## Zernel ${{ github.ref_name }}
+            ## Zernel ${{ github.ref_name }} — AI-Native Linux OS
+
+            ### What's in This Release
+
+            Zernel is a Linux distribution built for ML and LLM workloads. This release includes:
+
+            - **zernel** — CLI IDE with experiment tracking, model registry, job orchestration, ZQL queries
+            - **zernel-scheduler** — sched_ext ML-aware CPU scheduler with phase detection, NUMA, multi-tenant
+            - **zerneld** — eBPF observability daemon (Prometheus + WebSocket telemetry)
+            - **zernel-dashboard** — Browser-based monitoring UI (axum + htmx + SSE)
+            - **zernel-install** — ML tool package manager (25+ tools)
+            - **setup-ml-stack.sh** — Full ML/AI/LLM stack installer (PyTorch, JAX, vLLM, Ollama, etc.)
+            - **systemd services** — zerneld, zernel-scheduler, zernel-dashboard, ollama
+            - **Kernel config** — ML-optimized Linux 6.12+ .config with huge pages, NUMA, RDMA, sched_ext
+            - **sysctl tuning** — Pre-tuned for ML workloads (no swap, 128MB network buffers, BBR)
 
             ### Downloads
 
             | File | Description |
             |------|-------------|
-            | `zernel-linux-x86_64.tar.gz` | Linux x86_64 binaries (zernel, zernel-scheduler, zerneld) |
-            | `zernel-linux-x86_64.zip` | Linux x86_64 binaries (zip) |
-            | `zernel-linux-aarch64.tar.gz` | Linux aarch64/ARM64 binaries |
-            | `zernel-linux-aarch64.zip` | Linux aarch64/ARM64 binaries (zip) |
-            | `zernel-*-source.tar.gz` | Source code (tarball) |
-            | `zernel-*-source.zip` | Source code (zip) |
-            | `SHA256SUMS.txt` | SHA-256 checksums for all files |
+            | `zernel-linux-x86_64.tar.gz` | Linux x86_64 — all binaries, configs, docs, install script |
+            | `zernel-linux-x86_64.zip` | Same as above (zip format) |
+            | `zernel-linux-aarch64.tar.gz` | Linux ARM64 — all binaries, configs, docs, install script |
+            | `zernel-linux-aarch64.zip` | Same as above (zip format) |
+            | `zernel-*-source.tar.gz` | Complete source code |
+            | `zernel-*-source.zip` | Complete source code (zip format) |
+            | `SHA256SUMS.txt` | SHA-256 checksums for verification |
 
-            ### Quick Install
+            ### Quick Install (Linux)
 
             ```bash
             # Download and extract
             curl -fsSL https://github.com/dyber-pqc/Zernel/releases/download/${{ github.ref_name }}/zernel-linux-x86_64.tar.gz | tar xz
             cd zernel-linux-x86_64
 
-            # Install binaries
-            sudo cp zernel /usr/local/bin/
-            sudo cp zernel-scheduler /usr/local/bin/
-            sudo cp zerneld /usr/local/bin/
+            # Install all binaries + services
+            sudo bash install.sh
 
             # Verify
             zernel --version
             zernel doctor
+
+            # Install ML stack (PyTorch, JAX, vLLM, Ollama, Jupyter, etc.)
+            sudo bash scripts/setup-ml-stack.sh
+
+            # Start monitoring
+            sudo systemctl start zerneld
+            zernel watch
             ```
 
             ### Build from Source
 
             ```bash
-            tar xzf zernel-*-source.tar.gz
-            cd zernel-*/
+            # From source archive
+            tar xzf zernel-*-source.tar.gz && cd zernel-*/
             cargo build --workspace --release
-            cargo test --workspace
+            cargo test --workspace  # 109 tests
+            ```
+
+            ### What's Included in the Archive
+
+            ```
+            zernel-linux-x86_64/
+            ├── bin/
+            │   ├── zernel              # CLI IDE
+            │   ├── zernel-scheduler    # sched_ext CPU scheduler
+            │   ├── zerneld             # eBPF observability daemon
+            │   └── zernel-dashboard    # Web dashboard
+            ├── config/
+            │   ├── 99-zernel.conf      # ML-optimized sysctl params
+            │   └── zernel-x86_64       # Kernel .config
+            ├── systemd/
+            │   ├── zerneld.service
+            │   ├── zernel-scheduler.service
+            │   ├── zernel-dashboard.service
+            │   └── ollama.service
+            ├── scripts/
+            │   ├── setup-ml-stack.sh   # Full ML/AI/LLM installer
+            │   ├── zernel-install      # Tool package manager
+            │   └── quickstart-wsl.sh   # WSL quick start
+            ├── docs/                   # 9 documentation files
+            ├── install.sh              # One-command installer
+            ├── README.md
+            ├── LICENSE                 # GPL-2.0 (kernel components)
+            ├── LICENSE-ENTERPRISE      # Proprietary (CLI, dashboard)
+            └── SECURITY.md
             ```
 
             ---
-            Copyright (C) 2026 Dyber, Inc.
+            **Zernel** — The OS that ML infrastructure engineers wish existed.
+            Copyright (C) 2026 [Dyber, Inc.](https://dyber.io)
