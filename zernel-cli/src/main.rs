@@ -97,6 +97,9 @@ enum Commands {
     /// Training optimizations — precision, memory, checkpoints, NUMA
     #[command(subcommand)]
     Optimize(commands::optimize::OptimizeCommands),
+    /// Post-Quantum Cryptography — sign, verify, encrypt, decrypt
+    #[command(subcommand)]
+    Pqc(commands::pqc::PqcCommands),
     /// GPU cost tracking — summary, budget, report
     #[command(subcommand)]
     Cost(commands::cost::CostCommands),
@@ -138,6 +141,7 @@ async fn main() -> Result<()> {
         Commands::Notebook(cmd) => commands::notebook::run(cmd).await,
         Commands::Power(cmd) => commands::power::run(cmd).await,
         Commands::Optimize(cmd) => commands::optimize::run(cmd).await,
+        Commands::Pqc(cmd) => commands::pqc::run(cmd).await,
         Commands::Query { query } => {
             let result = zql::executor::execute(&query)?;
             println!("{result}");

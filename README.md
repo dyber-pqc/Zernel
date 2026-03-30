@@ -231,6 +231,29 @@ See [docs/scheduler.md](docs/scheduler.md) for the full technical deep-dive.
 | `zernel notebook convert <file> --to py` | Convert notebook to script |
 | `zernel query "<ZQL>"` | SQL-like queries across experiments, jobs, models |
 
+### Post-Quantum Cryptography & Security
+
+| Command | Description |
+|---------|-------------|
+| `zernel pqc keygen` | Generate ML-KEM + ML-DSA compatible keypair |
+| `zernel pqc sign <path>` | Sign a model/checkpoint (quantum-resistant) |
+| `zernel pqc verify <path>` | Verify signature integrity |
+| `zernel pqc encrypt <path>` | Encrypt with AES-256-GCM + PQC key exchange |
+| `zernel pqc decrypt <path>` | Decrypt |
+| `zernel pqc boot-verify` | Verify UEFI Secure Boot chain |
+
+### Performance & Energy
+
+| Command | Description |
+|---------|-------------|
+| `zernel power status` | GPU power state (clocks, draw, efficiency) |
+| `zernel power enable` | Enable phase-aware power management (saves 10-20% energy) |
+| `zernel power carbon` | Carbon footprint estimate (kWh → CO2) |
+| `zernel power profile <script>` | Profile GPU power during training |
+| `zernel optimize precision <script>` | Mixed precision advisor (BF16/FP16/TF32) |
+| `zernel optimize memory` | CUDA memory allocator tuning |
+| `zernel optimize scan <script>` | Full optimization audit |
+
 ---
 
 ## Repository Structure

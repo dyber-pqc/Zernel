@@ -19,6 +19,7 @@ pub mod model;
 pub mod notebook;
 pub mod optimize;
 pub mod power;
+pub mod pqc;
 pub mod run;
 pub mod serve;
 pub mod watch;
