@@ -1,11 +1,13 @@
 // Copyright (C) 2026 Dyber, Inc. — Proprietary
 
+use crate::validation;
 use anyhow::Result;
 use std::fs;
 use tracing::info;
 
 /// Scaffold a new Zernel ML project.
 pub async fn run(name: &str) -> Result<()> {
+    validation::validate_project_path(name)?;
     info!(name, "initializing project");
 
     let project_dir = std::path::Path::new(name);

@@ -1,0 +1,16 @@
+# Zernel Code Owners
+# Copyright (C) 2026 Dyber, Inc.
+
+# Default — all files
+* @dyber-pqc
+
+# Security-sensitive files require explicit review
+SECURITY.md @dyber-pqc
+.github/workflows/ @dyber-pqc
+deny.toml @dyber-pqc
+
+# Per-component ownership
+zernel-scheduler/ @dyber-pqc
+zernel-ebpf/ @dyber-pqc
+zernel-cli/ @dyber-pqc
+distro/ @dyber-pqc

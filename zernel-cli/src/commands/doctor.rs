@@ -198,7 +198,7 @@ fn check_git() -> CheckResult {
 fn check_zerneld() -> CheckResult {
     // Try to connect to zerneld health endpoint
     let result = std::net::TcpStream::connect_timeout(
-        &"127.0.0.1:9091".parse().unwrap(),
+        &"127.0.0.1:9091".parse().expect("constant address"),
         std::time::Duration::from_millis(500),
     );
     match result {

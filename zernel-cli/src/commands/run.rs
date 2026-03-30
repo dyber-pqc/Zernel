@@ -64,8 +64,14 @@ pub async fn run(script: &str, args: &[String]) -> Result<()> {
         .spawn()
         .with_context(|| format!("failed to launch: {python} {script}"))?;
 
-    let stdout = child.stdout.take().unwrap();
-    let stderr = child.stderr.take().unwrap();
+    let stdout = child
+        .stdout
+        .take()
+        .ok_or_else(|| anyhow::anyhow!("failed to capture child stdout"))?;
+    let stderr = child
+        .stderr
+        .take()
+        .ok_or_else(|| anyhow::anyhow!("failed to capture child stderr"))?;
 
     let exp_id_clone = exp_id.clone();
     let db_path_clone = db_path.clone();

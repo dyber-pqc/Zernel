@@ -7,6 +7,7 @@
 mod commands;
 mod experiments;
 mod telemetry;
+pub mod validation;
 mod zql;
 
 use anyhow::Result;

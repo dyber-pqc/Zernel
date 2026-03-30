@@ -62,7 +62,7 @@ async fn handle_request(
             Ok(Response::builder()
                 .header("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
                 .body(Full::new(Bytes::from(body)))
-                .unwrap())
+                .expect("valid response builder"))
         }
         "/health" => Ok(Response::new(Full::new(Bytes::from("ok")))),
         "/json" => {
@@ -71,11 +71,11 @@ async fn handle_request(
             Ok(Response::builder()
                 .header("Content-Type", "application/json")
                 .body(Full::new(Bytes::from(body)))
-                .unwrap())
+                .expect("valid response builder"))
         }
         _ => Ok(Response::builder()
             .status(StatusCode::NOT_FOUND)
             .body(Full::new(Bytes::from("not found")))
-            .unwrap()),
+            .expect("valid response builder")),
     }
 }

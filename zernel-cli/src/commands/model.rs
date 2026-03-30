@@ -1,5 +1,6 @@
 // Copyright (C) 2026 Dyber, Inc. — Proprietary
 
+use crate::validation;
 use anyhow::{Context, Result};
 use chrono::Utc;
 use clap::Subcommand;
@@ -85,7 +86,9 @@ fn walkdir(path: &Path) -> u64 {
     let mut total = 0u64;
     if let Ok(entries) = std::fs::read_dir(path) {
         for entry in entries.flatten() {
-            let ft = entry.file_type().unwrap_or_else(|_| unreachable!());
+            let Ok(ft) = entry.file_type() else {
+                continue;
+            };
             if ft.is_file() {
                 total += entry.metadata().map(|m| m.len()).unwrap_or(0);
             } else if ft.is_dir() {
@@ -124,6 +127,10 @@ pub async fn run(cmd: ModelCommands) -> Result<()> {
             });
             let model_tag = tag.unwrap_or_else(|| "latest".into());
 
+            // Validate name and tag to prevent path traversal
+            validation::validate_name(&model_name)?;
+            validation::validate_tag(&model_tag)?;
+
             let git_commit = std::process::Command::new("git")
                 .args(["rev-parse", "--short", "HEAD"])
                 .output()
@@ -143,7 +150,9 @@ pub async fn run(cmd: ModelCommands) -> Result<()> {
             std::fs::create_dir_all(&dest)?;
 
             if source.is_file() {
-                let fname = source.file_name().unwrap();
+                let fname = source
+                    .file_name()
+                    .ok_or_else(|| anyhow::anyhow!("source path has no filename"))?;
                 std::fs::copy(source, dest.join(fname))
                     .with_context(|| format!("failed to copy {path}"))?;
             } else {

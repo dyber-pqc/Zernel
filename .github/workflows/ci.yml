@@ -43,14 +43,17 @@ jobs:
       - name: Tests
         run: cargo test --workspace
 
-  # GPU tests run on self-hosted runner with NVIDIA GPU
-  # gpu-tests:
-  #   name: GPU Integration Tests
-  #   runs-on: [self-hosted, gpu]
-  #   needs: check
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - name: Build with BPF
-  #       run: cargo build --workspace --features bpf
-  #     - name: Integration tests
-  #       run: cargo test --workspace --features bpf -- --ignored
+  security:
+    name: Security Checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-deny
+        run: cargo install cargo-deny
+
+      - name: Check licenses and advisories
+        run: cargo deny check
