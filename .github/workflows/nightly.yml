@@ -1,0 +1,40 @@
+name: Nightly
+
+on:
+  schedule:
+    - cron: '0 4 * * *'  # 4 AM UTC daily
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  nightly-build:
+    name: Nightly Build (Rust nightly)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust nightly
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rustfmt, clippy
+
+      - name: Build (nightly)
+        run: cargo build --workspace --release
+
+      - name: Test (nightly)
+        run: cargo test --workspace
+
+      - name: Clippy (nightly, warnings only)
+        run: cargo clippy --workspace 2>&1 || true
+
+      - name: Upload nightly binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: zernel-nightly-${{ github.sha }}
+          path: |
+            target/release/zernel
+            target/release/zernel-ebpf
+            target/release/zernel-scheduler
+          retention-days: 7

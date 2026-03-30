@@ -1,0 +1,34 @@
+#!/usr/bin/make -f
+# Zernel Debian build rules
+# Copyright (C) 2026 Dyber, Inc.
+
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+DESTDIR = debian/tmp
+
+%:
+	dh $@
+
+override_dh_auto_build:
+	cargo build --workspace --release
+
+override_dh_auto_install:
+	# CLI
+	install -Dm755 target/release/zernel $(DESTDIR)/usr/local/bin/zernel
+
+	# eBPF daemon
+	install -Dm755 target/release/zernel-ebpf $(DESTDIR)/usr/local/bin/zerneld
+	install -Dm644 distro/systemd/zerneld.service $(DESTDIR)/lib/systemd/system/zerneld.service
+
+	# Scheduler
+	install -Dm755 target/release/zernel-scheduler $(DESTDIR)/usr/local/bin/zernel-scheduler
+	install -Dm644 distro/systemd/zernel-scheduler.service $(DESTDIR)/lib/systemd/system/zernel-scheduler.service
+
+	# Configuration
+	install -Dm644 distro/sysctl/99-zernel.conf $(DESTDIR)/etc/sysctl.d/99-zernel.conf
+	install -dm755 $(DESTDIR)/etc/zernel
+
+override_dh_auto_test:
+	cargo test --workspace
+
+override_dh_auto_clean:
+	cargo clean || true

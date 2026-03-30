@@ -1,0 +1,41 @@
+Source: zernel
+Section: admin
+Priority: optional
+Maintainer: Dyber, Inc. <engineering@dyber.io>
+Build-Depends: debhelper (>= 13), cargo, rustc (>= 1.75)
+Standards-Version: 4.6.2
+Homepage: https://github.com/dyber-pqc/Zernel
+Vcs-Browser: https://github.com/dyber-pqc/Zernel
+Vcs-Git: https://github.com/dyber-pqc/Zernel.git
+
+Package: zernel-cli
+Architecture: amd64 arm64
+Depends: ${misc:Depends}
+Recommends: python3 (>= 3.10), zerneld
+Description: Zernel CLI IDE — terminal-native ML developer environment
+ Terminal-native experiment tracking, model registry, job orchestration,
+ live GPU dashboard, and ZQL query language for ML/LLM workloads.
+ .
+ Commands: zernel init, run, watch, exp, model, job, doctor, query.
+
+Package: zerneld
+Architecture: amd64 arm64
+Depends: ${misc:Depends}
+Recommends: zernel-cli, zernel-scheduler
+Description: Zernel eBPF observability daemon
+ Real-time ML workload observability via eBPF probes. Instruments GPU
+ memory, CUDA kernel latency, NCCL collectives, and DataLoader I/O
+ without any application code changes.
+ .
+ Exposes Prometheus metrics and WebSocket telemetry stream.
+
+Package: zernel-scheduler
+Architecture: amd64 arm64
+Depends: ${misc:Depends}, zerneld
+Description: Zernel sched_ext ML-aware CPU scheduler
+ Custom Linux CPU scheduler using sched_ext (Linux 6.12+) that detects
+ ML workload phases (DataLoading, GpuCompute, NcclCollective,
+ OptimizerStep) and applies phase-specific scheduling policies.
+ .
+ Features NUMA-aware CPU selection and multi-tenant GPU-proportional
+ CPU allocation.

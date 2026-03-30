@@ -1,0 +1,9 @@
+target/
+.git/
+.github/
+.claude/
+*.md
+!README.md
+tests/
+docs/
+*.iso

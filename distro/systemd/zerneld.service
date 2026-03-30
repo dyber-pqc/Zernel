@@ -1,0 +1,49 @@
+# Zernel eBPF Observability Daemon
+# Copyright (C) 2026 Dyber, Inc.
+#
+# Install: sudo cp zerneld.service /etc/systemd/system/
+# Enable:  sudo systemctl enable --now zerneld
+#
+# Logs:    journalctl -u zerneld -f
+
+[Unit]
+Description=Zernel eBPF Observability Daemon
+Documentation=https://github.com/dyber-pqc/Zernel/blob/main/docs/ebpf.md
+After=network.target nvidia-persistenced.service
+Wants=nvidia-persistenced.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/zerneld
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+
+# Environment
+Environment=ZERNEL_LOG=zernel_ebpf=info
+Environment=ZERNEL_METRICS_PORT=9091
+Environment=ZERNEL_WS_PORT=9092
+
+# BPF requires elevated privileges
+AmbientCapabilities=CAP_SYS_ADMIN CAP_BPF CAP_PERFMON CAP_NET_ADMIN
+CapabilityBoundingSet=CAP_SYS_ADMIN CAP_BPF CAP_PERFMON CAP_NET_ADMIN
+
+# Memory locking for BPF maps
+LimitMEMLOCK=infinity
+
+# Security hardening
+ProtectHome=yes
+ProtectSystem=strict
+ReadWritePaths=/sys/kernel/debug /sys/kernel/tracing /sys/fs/bpf
+PrivateTmp=yes
+NoNewPrivileges=no
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target

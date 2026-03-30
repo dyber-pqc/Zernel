@@ -1,0 +1,8 @@
+zernel (0.1.0-1) unstable; urgency=medium
+
+  * Initial release.
+  * zernel-cli: Terminal-native ML developer environment.
+  * zerneld: eBPF observability daemon with Prometheus/WebSocket.
+  * zernel-scheduler: sched_ext ML-aware CPU scheduler.
+
+ -- Dyber, Inc. <engineering@dyber.io>  Sun, 30 Mar 2026 00:00:00 +0000

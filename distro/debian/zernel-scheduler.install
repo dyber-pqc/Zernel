@@ -1,0 +1,2 @@
+usr/local/bin/zernel-scheduler
+lib/systemd/system/zernel-scheduler.service

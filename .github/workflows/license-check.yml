@@ -1,0 +1,43 @@
+name: License Check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  copyright-headers:
+    name: Copyright Headers
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check copyright headers
+        run: |
+          echo "Checking copyright headers on .rs files..."
+          MISSING=0
+
+          for file in $(find zernel-scheduler/src zernel-ebpf/src zernel-cli/src -name '*.rs'); do
+            FIRST_LINE=$(head -1 "$file")
+            if [[ ! "$FIRST_LINE" == *"Copyright"* && ! "$FIRST_LINE" == *"#!"* ]]; then
+              # Check second line for files starting with #!
+              SECOND_LINE=$(sed -n '2p' "$file")
+              if [[ ! "$SECOND_LINE" == *"Copyright"* ]]; then
+                # Allow files that start with #![allow(...)] or module-level attrs
+                if [[ ! "$FIRST_LINE" == "#!"* ]]; then
+                  echo "MISSING: $file"
+                  MISSING=$((MISSING + 1))
+                fi
+              fi
+            fi
+          done
+
+          if [ $MISSING -gt 0 ]; then
+            echo ""
+            echo "ERROR: $MISSING file(s) missing copyright header."
+            echo "Required: // Copyright (C) 2026 Dyber, Inc. — <license>"
+            exit 1
+          fi
+
+          echo "All .rs files have copyright headers."

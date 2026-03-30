@@ -1,0 +1,49 @@
+# Zernel sched_ext ML Scheduler
+# Copyright (C) 2026 Dyber, Inc.
+#
+# Install: sudo cp zernel-scheduler.service /etc/systemd/system/
+# Enable:  sudo systemctl enable --now zernel-scheduler
+#
+# Logs:    journalctl -u zernel-scheduler -f
+# Config:  /etc/zernel/scheduler.toml
+
+[Unit]
+Description=Zernel sched_ext ML CPU Scheduler
+Documentation=https://github.com/dyber-pqc/Zernel/blob/main/docs/scheduler.md
+After=network.target zerneld.service
+Wants=zerneld.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/zernel-scheduler
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+
+# Environment
+Environment=ZERNEL_LOG=zernel_scheduler=info
+
+# sched_ext BPF requires elevated privileges
+AmbientCapabilities=CAP_SYS_ADMIN CAP_BPF CAP_PERFMON
+CapabilityBoundingSet=CAP_SYS_ADMIN CAP_BPF CAP_PERFMON
+
+# Memory locking for BPF maps
+LimitMEMLOCK=infinity
+
+# Security hardening
+ProtectHome=yes
+ProtectSystem=strict
+ReadWritePaths=/sys/kernel/debug /sys/kernel/tracing /sys/fs/bpf /etc/zernel
+PrivateTmp=yes
+NoNewPrivileges=no
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target

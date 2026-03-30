@@ -1,0 +1,104 @@
+name: Documentation
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build Documentation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Generate API docs
+        run: cargo doc --workspace --no-deps --document-private-items
+
+      - name: Build documentation site
+        run: |
+          mkdir -p site
+
+          # Copy Rust API docs
+          cp -r target/doc site/api
+
+          # Copy markdown docs
+          cp -r docs site/docs
+          cp README.md site/
+
+          # Create index page
+          cat > site/index.html << 'HTML'
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <title>Zernel Documentation</title>
+            <meta charset="utf-8">
+            <style>
+              body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; }
+              h1 { color: #1a1a2e; }
+              a { color: #0066cc; }
+              .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; }
+              .card { border: 1px solid #ddd; border-radius: 8px; padding: 20px; }
+              .card h3 { margin-top: 0; }
+            </style>
+          </head>
+          <body>
+            <h1>Zernel Documentation</h1>
+            <p>AI-Native Linux OS for Machine Learning</p>
+            <div class="grid">
+              <div class="card">
+                <h3>Guides</h3>
+                <ul>
+                  <li><a href="docs/architecture.html">Architecture</a></li>
+                  <li><a href="docs/installation.html">Installation</a></li>
+                  <li><a href="docs/scheduler.html">ML Scheduler</a></li>
+                  <li><a href="docs/ebpf.html">eBPF Observability</a></li>
+                  <li><a href="docs/cli.html">CLI Reference</a></li>
+                  <li><a href="docs/configuration.html">Configuration</a></li>
+                  <li><a href="docs/kernel-config.html">Kernel Config</a></li>
+                  <li><a href="docs/api.html">API Reference</a></li>
+                  <li><a href="docs/upgrade.html">Upgrade Guide</a></li>
+                </ul>
+              </div>
+              <div class="card">
+                <h3>API Documentation</h3>
+                <ul>
+                  <li><a href="api/zernel_scheduler/index.html">zernel-scheduler</a></li>
+                  <li><a href="api/zernel_ebpf/index.html">zernel-ebpf</a></li>
+                  <li><a href="api/zernel/index.html">zernel-cli</a></li>
+                </ul>
+              </div>
+            </div>
+            <p style="margin-top: 40px; color: #666;">Copyright &copy; 2026 Dyber, Inc.</p>
+          </body>
+          </html>
+          HTML
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    name: Deploy to Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

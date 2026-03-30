@@ -1,0 +1,3 @@
+usr/local/bin/zerneld
+lib/systemd/system/zerneld.service
+etc/sysctl.d/99-zernel.conf
