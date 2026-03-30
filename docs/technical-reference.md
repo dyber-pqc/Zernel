@@ -277,7 +277,7 @@ bash scripts/quickstart-wsl.sh
 | [Installation](docs/installation.md) | Build from source, hardware requirements, distro install |
 | [Scheduler](docs/scheduler.md) | Phase detection, NUMA, multi-tenant, configuration |
 | [eBPF Observability](docs/ebpf.md) | Probe architecture, Prometheus metrics, WebSocket |
-| [CLI Reference](docs/cli.md) | All 40+ commands with examples |
+| [CLI Reference](docs/cli.md) | All 50+ commands with examples |
 | [Kernel Config](docs/kernel-config.md) | .config, sysctl, huge pages, RDMA |
 | [Configuration](docs/configuration.md) | Config files, environment variables, ports |
 | [API Reference](docs/api.md) | Prometheus, WebSocket, JSON endpoints |

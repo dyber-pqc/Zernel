@@ -93,7 +93,7 @@ Why this matters: nation-state actors are running "harvest now, decrypt later" c
 
 ---
 
-## 40+ Built-In Tools
+## 50+ Built-In Tools
 
 Every tool does real work. No stubs. No "coming soon."
 
@@ -169,6 +169,37 @@ zernel data profile ./dataset.parquet  # Stats, schema, size
 zernel data split ./data --train 0.8   # Reproducible train/val/test
 zernel data shard ./data --shards 64   # For distributed training
 zernel data benchmark --workers 8      # DataLoader throughput
+```
+
+### GPU Fleet Management (enterprise scale)
+
+```bash
+zernel fleet status            # Fleet-wide GPU utilization + power + daily cost
+zernel fleet costs --period month  # Cost attribution ($2.50/GPU-hr A100, $4/hr H100)
+zernel fleet idle              # Detect underutilized GPUs across the fleet
+zernel fleet reclaim           # Power down idle GPUs (saves $60/GPU/day)
+zernel fleet rightsize         # GPU type recommendations from utilization patterns
+zernel fleet plan --growth 15  # 12-month capacity forecast at growth rate
+zernel fleet health            # Fleet subsystem health check
+```
+
+### Compliance & Audit Trail (regulated industries)
+
+```bash
+zernel audit trail <exp-id>    # Full audit record (status, git, script, PQC sig)
+zernel audit export --format json  # SOC 2 / HIPAA compliance export
+zernel audit lineage llama:v1  # Data lineage (model → script → dataset → raw data)
+zernel audit provenance <id>   # Model provenance chain (5-step verification)
+zernel audit report --standard soc2   # Generate SOC 2 Type II compliance report
+zernel audit report --standard hipaa  # Generate HIPAA compliance controls
+```
+
+### Developer Onboarding (minutes, not days)
+
+```bash
+zernel onboard setup my-project  # 5-step automated setup (env → stack → project)
+zernel onboard share             # Generate shareable environment snapshot
+zernel onboard sync env.yml      # Reproduce teammate's environment
 ```
 
 ### Energy + Cost + Environment
@@ -282,12 +313,12 @@ bash scripts/quickstart-wsl.sh
 
 | Document | Description |
 |----------|-------------|
-| [Technical Reference](docs/technical-reference.md) | Complete technical spec with all 40+ commands |
+| [Technical Reference](docs/technical-reference.md) | Complete technical spec with all 50+ commands |
 | [Architecture](docs/architecture.md) | System design, data flow, crate dependencies |
 | [Installation](docs/installation.md) | Build from source, hardware requirements, distro install |
 | [Scheduler](docs/scheduler.md) | Phase detection, NUMA, multi-tenant, configuration |
 | [eBPF Observability](docs/ebpf.md) | Probe architecture, Prometheus metrics, WebSocket |
-| [CLI Reference](docs/cli.md) | All 40+ commands with examples |
+| [CLI Reference](docs/cli.md) | All 50+ commands with examples |
 | [Kernel Config](docs/kernel-config.md) | .config, sysctl, huge pages, RDMA |
 | [Configuration](docs/configuration.md) | Config files, environment variables, ports |
 | [API Reference](docs/api.md) | Prometheus, WebSocket, JSON endpoints |
@@ -318,7 +349,7 @@ bash scripts/quickstart-wsl.sh
 |-----------|---------|---------------|
 | ML Scheduler | Rust + BPF C | libbpf-rs, sched_ext |
 | eBPF Daemon | Rust | hyper, tokio-tungstenite |
-| CLI IDE (40+ commands) | Rust | clap, ratatui, rusqlite, nom |
+| CLI IDE (50+ commands) | Rust | clap, ratatui, rusqlite, nom |
 | PQC Crypto | Rust | sha2, aes-gcm (ML-KEM/ML-DSA compatible) |
 | Web Dashboard | Rust | axum, htmx, SSE |
 | GNOME Extension | JavaScript | GLib, nvidia-smi integration |
@@ -342,7 +373,7 @@ bash scripts/quickstart-wsl.sh
 - [x] Phase 4: Distro integration, bootable ISO, distributed training
 - [x] Phase 5: GNOME desktop, ML stack, Ollama
 - [x] Phase 6: PQC security, power management, optimization advisor
-- [x] Phase 7: 40+ CLI tools (gpu, bench, debug, data, cluster, serve, hub, cost, env)
+- [x] Phase 7: 50+ CLI tools (gpu, bench, debug, data, cluster, serve, hub, cost, env)
 - [ ] Phase 8: Production benchmarks on A100/H100 clusters
 - [ ] Phase 9: Enterprise dashboard, multi-tenant billing, SSO
 - [ ] Phase 10: FedRAMP/HIPAA certification, air-gapped deployment

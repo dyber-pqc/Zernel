@@ -434,3 +434,58 @@ zernel optimize checkpoint ./ckpt      # Checkpoint optimization recommendations
 zernel optimize scan train.py          # Full optimization audit
 zernel optimize numa                   # NUMA topology + data placement advice
 ```
+
+## GPU Fleet Management (`zernel fleet`)
+
+Enterprise-scale GPU fleet management for 100-10,000+ GPUs.
+
+```bash
+zernel fleet status            # Fleet-wide GPU utilization, power draw, daily cost
+zernel fleet costs             # Cost attribution by period
+                               #   A100 on-demand: $2.50/GPU-hr
+                               #   A100 reserved:  $1.50/GPU-hr
+                               #   H100 on-demand: $4.00/GPU-hr
+                               #   On-prem (electricity): $0.10/kWh
+zernel fleet idle              # Detect GPUs below utilization threshold
+zernel fleet idle --threshold 5 --duration 30  # Custom thresholds
+zernel fleet reclaim           # Power down idle GPUs
+zernel fleet reclaim --dry-run # Preview what would be reclaimed
+zernel fleet rightsize         # GPU type recommendations from usage patterns
+zernel fleet plan --growth 15  # 12-month capacity forecast
+zernel fleet health            # Check all fleet subsystems
+```
+
+## Compliance & Audit Trail (`zernel audit`)
+
+Immutable training logs, data lineage, model provenance, and compliance exports.
+
+```bash
+zernel audit trail <exp-id>    # Full audit record for an experiment
+zernel audit export --format json   # Export all experiment metadata
+zernel audit export --format csv    # CSV format for spreadsheets
+zernel audit lineage model:tag      # Data lineage chain
+zernel audit provenance <id>        # Model provenance (5-step chain)
+zernel audit report --standard soc2   # SOC 2 Type II compliance report
+zernel audit report --standard hipaa  # HIPAA compliance controls
+```
+
+### Compliance Standards Supported
+- **SOC 2 Type II**: CC6.1 (access controls), CC6.6 (encryption), CC7.2 (monitoring), CC8.1 (change management)
+- **HIPAA**: 164.312(a) (access control), 164.312(e) (transmission security), 164.312(b) (audit controls)
+- **ISO 27001**: Information security management
+- **GDPR**: Data processing records
+
+## Developer Onboarding (`zernel onboard`)
+
+Gets a new team member from "laptop" to "training a model" in minutes.
+
+```bash
+zernel onboard setup my-project    # 5-step automated onboarding:
+                                   #   1. Environment check (python, git, GPU)
+                                   #   2. ML stack verification
+                                   #   3. Project creation
+                                   #   4. Environment snapshot
+                                   #   5. Next-steps guide
+zernel onboard share               # Generate shareable environment snapshot
+zernel onboard sync env.yml        # Reproduce a teammate's environment
+```
