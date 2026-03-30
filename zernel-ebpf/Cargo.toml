@@ -30,4 +30,4 @@ clap = { version = "4", features = ["derive", "env"] }
 quick-xml = "0.37"
 
 [build-dependencies]
-libbpf-cargo = { version = "0.24", optional = true }
+libbpf-cargo = { version = "0.26", optional = true }
