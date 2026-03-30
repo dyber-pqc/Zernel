@@ -9,7 +9,6 @@ no-default-features = false
 
 [advisories]
 vulnerability = "warn"
-unmaintained = "warn"
 yanked = "warn"
 notice = "warn"
 ignore = []
@@ -26,8 +25,8 @@ allow = [
     "Unicode-3.0",
     "Unicode-DFS-2016",
     "Zlib",
-    "GPL-2.0",
     "GPL-2.0-only",
+    "GPL-2.0-or-later",
     "OpenSSL",
     "BSL-1.0",
     "CC0-1.0",
@@ -36,9 +35,11 @@ allow = [
 copyleft = "warn"
 confidence-threshold = 0.8
 
+# ring uses a custom license (ISC-style)
 [[licenses.exceptions]]
-allow = ["Ring"]
+allow = ["ISC", "MIT", "OpenSSL"]
 name = "ring"
+version = "*"
 
 [bans]
 multiple-versions = "warn"

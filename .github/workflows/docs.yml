@@ -104,3 +104,6 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+        continue-on-error: true
+        # Note: Requires GitHub Pages to be enabled in repo Settings > Pages
+        # Set source to "GitHub Actions" at https://github.com/dyber-pqc/Zernel/settings/pages

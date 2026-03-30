@@ -298,7 +298,7 @@ pub async fn run(cmd: JobCommands) -> Result<()> {
                 .spawn()
                 .with_context(|| format!("failed to launch {launcher}. Is it installed?"))?;
 
-            let pid = child.id().unwrap_or(0) as u32;
+            let pid = child.id().unwrap_or(0);
 
             // Record in DB
             let conn = open_jobs_db()?;
