@@ -25,7 +25,9 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Generate API docs
-        run: cargo doc --workspace --no-deps --document-private-items
+        run: cargo doc --workspace --no-deps --document-private-items --exclude zernel-tests
+        env:
+          RUSTDOCFLAGS: ""
 
       - name: Build documentation site
         run: |

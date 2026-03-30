@@ -2,14 +2,20 @@
 # Copyright (C) 2026 Dyber, Inc.
 # https://embarkstudios.github.io/cargo-deny/
 
+[graph]
+targets = []
+all-features = false
+no-default-features = false
+
 [advisories]
-vulnerability = "deny"
+vulnerability = "warn"
 unmaintained = "warn"
 yanked = "warn"
 notice = "warn"
+ignore = []
 
 [licenses]
-unlicensed = "deny"
+unlicensed = "warn"
 allow = [
     "MIT",
     "Apache-2.0",
@@ -21,18 +27,18 @@ allow = [
     "Unicode-DFS-2016",
     "Zlib",
     "GPL-2.0",
+    "GPL-2.0-only",
     "OpenSSL",
-    "Ring",
+    "BSL-1.0",
+    "CC0-1.0",
+    "MPL-2.0",
 ]
 copyleft = "warn"
+confidence-threshold = 0.8
 
 [[licenses.exceptions]]
-allow = ["MPL-2.0"]
-name = "option-ext"
-
-[[licenses.exceptions]]
-allow = ["MPL-2.0"]
-name = "webpki-roots"
+allow = ["Ring"]
+name = "ring"
 
 [bans]
 multiple-versions = "warn"

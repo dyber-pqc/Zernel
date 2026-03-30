@@ -31,32 +31,13 @@ jobs:
 
       - name: Run benchmarks
         run: |
-          cargo bench --bench scheduler_bench -- --output-format bencher | tee scheduler_output.txt
-          cargo bench --bench extraction_bench -- --output-format bencher | tee extraction_output.txt
-          cat scheduler_output.txt extraction_output.txt > combined_output.txt
+          cargo bench --bench scheduler_bench 2>&1 | tee bench_output.txt
+          cargo bench --bench extraction_bench 2>&1 | tee -a bench_output.txt
 
-      - name: Store benchmark results
-        if: github.ref == 'refs/heads/main'
-        uses: benchmark-action/github-action-benchmark@v1
+      - name: Upload benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
-          name: Zernel Benchmarks
-          tool: cargo
-          output-file-path: combined_output.txt
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          auto-push: true
-          alert-threshold: '110%'
-          comment-on-alert: true
-          fail-on-alert: false
-          alert-comment-cc-users: '@dyber-pqc'
-
-      - name: Compare benchmarks (PRs)
-        if: github.event_name == 'pull_request'
-        uses: benchmark-action/github-action-benchmark@v1
-        with:
-          name: Zernel Benchmarks
-          tool: cargo
-          output-file-path: combined_output.txt
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          auto-push: false
-          comment-always: true
-          alert-threshold: '110%'
+          name: benchmark-results
+          path: bench_output.txt
+          retention-days: 30

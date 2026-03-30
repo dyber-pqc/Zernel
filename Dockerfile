@@ -15,19 +15,27 @@ FROM rust:1.85-bookworm AS builder
 
 WORKDIR /build
 
-# Cache dependencies by building a dummy project first
+# Copy manifests for dependency caching
 COPY Cargo.toml Cargo.lock ./
 COPY zernel-scheduler/Cargo.toml zernel-scheduler/Cargo.toml
 COPY zernel-ebpf/Cargo.toml zernel-ebpf/Cargo.toml
+COPY zernel-ebpf/build.rs zernel-ebpf/build.rs
 COPY zernel-cli/Cargo.toml zernel-cli/Cargo.toml
+COPY zernel-dashboard/Cargo.toml zernel-dashboard/Cargo.toml
+COPY tests/Cargo.toml tests/Cargo.toml
 
 # Create dummy source files for dependency caching
-RUN mkdir -p zernel-scheduler/src zernel-ebpf/src zernel-cli/src && \
+RUN mkdir -p zernel-scheduler/src zernel-ebpf/src zernel-cli/src \
+             zernel-dashboard/src tests/integration && \
     echo "fn main() {}" > zernel-scheduler/src/main.rs && \
     echo "fn main() {}" > zernel-ebpf/src/main.rs && \
     echo "fn main() {}" > zernel-cli/src/main.rs && \
+    echo "fn main() {}" > zernel-dashboard/src/main.rs && \
+    touch tests/integration/cli_workflow.rs tests/integration/security.rs && \
+    mkdir -p zernel-ebpf/src/bpf && touch zernel-ebpf/src/bpf/common.h && \
     cargo build --workspace --release 2>/dev/null || true && \
-    rm -rf zernel-scheduler/src zernel-ebpf/src zernel-cli/src
+    rm -rf zernel-scheduler/src zernel-ebpf/src zernel-cli/src \
+           zernel-dashboard/src tests/integration
 
 # Copy real source and build
 COPY . .
