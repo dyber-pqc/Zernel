@@ -97,6 +97,15 @@ enum Commands {
     /// Training optimizations — precision, memory, checkpoints, NUMA
     #[command(subcommand)]
     Optimize(commands::optimize::OptimizeCommands),
+    /// GPU fleet management — cost attribution, idle detection, capacity planning
+    #[command(subcommand)]
+    Fleet(commands::fleet::FleetCommands),
+    /// Compliance audit trail — lineage, provenance, HIPAA/SOC2 exports
+    #[command(subcommand)]
+    Audit(commands::audit::AuditCommands),
+    /// Developer onboarding — one-command setup, env sync, sharing
+    #[command(subcommand)]
+    Onboard(commands::onboard::OnboardCommands),
     /// Post-Quantum Cryptography — sign, verify, encrypt, decrypt
     #[command(subcommand)]
     Pqc(commands::pqc::PqcCommands),
@@ -142,6 +151,9 @@ async fn main() -> Result<()> {
         Commands::Power(cmd) => commands::power::run(cmd).await,
         Commands::Optimize(cmd) => commands::optimize::run(cmd).await,
         Commands::Pqc(cmd) => commands::pqc::run(cmd).await,
+        Commands::Fleet(cmd) => commands::fleet::run(cmd).await,
+        Commands::Audit(cmd) => commands::audit::run(cmd).await,
+        Commands::Onboard(cmd) => commands::onboard::run(cmd).await,
         Commands::Query { query } => {
             let result = zql::executor::execute(&query)?;
             println!("{result}");

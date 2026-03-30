@@ -1,5 +1,6 @@
 // Copyright (C) 2026 Dyber, Inc. — Proprietary
 
+pub mod audit;
 pub mod bench;
 pub mod cluster;
 pub mod cost;
@@ -8,6 +9,7 @@ pub mod debug;
 pub mod doctor;
 pub mod env;
 pub mod exp;
+pub mod fleet;
 pub mod gpu;
 pub mod hub;
 pub mod init;
@@ -17,6 +19,7 @@ pub mod job_ssh;
 pub mod log;
 pub mod model;
 pub mod notebook;
+pub mod onboard;
 pub mod optimize;
 pub mod power;
 pub mod pqc;
