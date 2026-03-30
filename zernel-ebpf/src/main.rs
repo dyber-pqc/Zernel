@@ -15,6 +15,9 @@ mod consumers;
 mod fallback;
 mod loader;
 mod metrics_server;
+mod nccl_priority;
+mod power;
+mod prefetch;
 mod simulator;
 mod websocket_server;
 

@@ -17,6 +17,8 @@ pub mod job_ssh;
 pub mod log;
 pub mod model;
 pub mod notebook;
+pub mod optimize;
+pub mod power;
 pub mod run;
 pub mod serve;
 pub mod watch;

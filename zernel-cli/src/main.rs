@@ -91,6 +91,12 @@ enum Commands {
     /// Environment management — snapshot, diff, reproduce, export
     #[command(subcommand)]
     Env(commands::env::EnvCommands),
+    /// Smart GPU power management & energy tracking
+    #[command(subcommand)]
+    Power(commands::power::PowerCommands),
+    /// Training optimizations — precision, memory, checkpoints, NUMA
+    #[command(subcommand)]
+    Optimize(commands::optimize::OptimizeCommands),
     /// GPU cost tracking — summary, budget, report
     #[command(subcommand)]
     Cost(commands::cost::CostCommands),
@@ -130,6 +136,8 @@ async fn main() -> Result<()> {
         Commands::Env(cmd) => commands::env::run(cmd).await,
         Commands::Cost(cmd) => commands::cost::run(cmd).await,
         Commands::Notebook(cmd) => commands::notebook::run(cmd).await,
+        Commands::Power(cmd) => commands::power::run(cmd).await,
+        Commands::Optimize(cmd) => commands::optimize::run(cmd).await,
         Commands::Query { query } => {
             let result = zql::executor::execute(&query)?;
             println!("{result}");
