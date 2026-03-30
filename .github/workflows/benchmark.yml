@@ -37,20 +37,32 @@ jobs:
       - name: Generate benchmark summary
         if: always()
         run: |
-          echo "## Zernel Performance Benchmarks" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### ML Scheduler" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          grep -E "^(test |Benchmarking|  time)" scheduler_bench.txt >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo "  (see artifacts for full output)" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Metric Extraction & ZQL Parser" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          grep -E "^(test |Benchmarking|  time)" extraction_bench.txt >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo "  (see artifacts for full output)" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "---" >> $GITHUB_STEP_SUMMARY
-          echo "*Zernel — AI-Native Linux OS. [View full results in artifacts.]()*" >> $GITHUB_STEP_SUMMARY
+          {
+            echo "## Zernel Performance Benchmarks"
+            echo ""
+            echo "### ML Scheduler"
+            echo '```'
+            grep -E "(time:|thrpt:)" scheduler_bench.txt || cat scheduler_bench.txt | grep -A1 "Analyzing" || echo "  See artifacts for details"
+            echo '```'
+            echo ""
+            echo "### Metric Extraction & ZQL Parser"
+            echo '```'
+            grep -E "(time:|thrpt:)" extraction_bench.txt || cat extraction_bench.txt | grep -A1 "Analyzing" || echo "  See artifacts for details"
+            echo '```'
+            echo ""
+            echo "### What These Measure"
+            echo ""
+            echo "| Benchmark | What It Tests | Why It Matters |"
+            echo "|-----------|--------------|----------------|"
+            echo "| \`phase_detection_1000_tasks\` | Classify 1000 ML tasks into workload phases | Core scheduler hot path — runs every 100ms |"
+            echo "| \`scheduling_decision_10000\` | Generate 10K priority decisions from phases | Throughput for large GPU clusters |"
+            echo "| \`numa_cpu_selection_64_cpus\` | Pick optimal CPU from 64-core NUMA topology | Per-task CPU placement latency |"
+            echo "| \`metric_extraction_1000_lines\` | Regex-extract metrics from 1000 training log lines | \`zernel run\` real-time metric capture overhead |"
+            echo "| \`zql_parse_1000_queries\` | Parse 1000 SQL-like ZQL queries | \`zernel query\` interactive response time |"
+            echo ""
+            echo "---"
+            echo "*Zernel — AI-Native Linux OS for ML workloads. Copyright (C) 2026 Dyber, Inc.*"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload benchmark results
         if: always()
