@@ -171,7 +171,6 @@ impl ExperimentStore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::PathBuf;
 
     fn temp_store() -> (ExperimentStore, tempfile::TempDir) {
         let dir = tempfile::tempdir().unwrap();
