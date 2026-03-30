@@ -103,8 +103,8 @@ cargo run -p zernel-ebpf --release -- --simulate
 ```
 +---------------------------------------------------------------------+
 |  LAYER 5: Zernel CLI IDE + Developer Environment                     |
-|  Terminal-native IDE . Experiment tracking . Model versioning         |
-|  Job orchestration . One-command deploy . ZQL query language          |
+|  Terminal-native IDE . Experiment tracking . Model versioning        |
+|  Job orchestration . One-command deploy . ZQL query language         |
 +---------------------------------------------------------------------+
 |  LAYER 4: eBPF Observability Layer                                   |
 |  GPU memory telemetry . CUDA launch profiling . NCCL bottlenecks     |
