@@ -258,3 +258,129 @@ gpus = "auto"
 enabled = true
 auto_log = true
 ```
+
+---
+
+## GPU Management (`zernel gpu`)
+
+```bash
+zernel gpu status              # Clean overview (nvidia-smi replacement)
+zernel gpu top                 # Real-time GPU process viewer
+zernel gpu mem                 # Memory usage by process
+zernel gpu kill 0              # Kill all processes on GPU 0
+zernel gpu lock 0,1 --for-job job-123   # Reserve GPUs
+zernel gpu unlock 0,1          # Release reservation
+zernel gpu temp --alert 85     # Temperature monitoring with alerts
+zernel gpu power --limit 300W  # Set power limit
+zernel gpu health              # ECC errors, throttling, PCIe check
+```
+
+## ML Benchmarks (`zernel bench`)
+
+```bash
+zernel bench all               # Full 5-test benchmark suite
+zernel bench quick             # 5-minute smoke test
+zernel bench gpu               # GPU compute TFLOPS at multiple matrix sizes
+zernel bench nccl              # Multi-GPU NCCL bandwidth
+zernel bench dataloader --workers 8     # DataLoader throughput
+zernel bench memory            # GPU memory allocation latency
+zernel bench e2e --model resnet50 --iterations 100   # Training throughput
+zernel bench report            # Generate report
+```
+
+## ML Debugger (`zernel debug`)
+
+```bash
+zernel debug why-slow          # 4-step diagnosis: GPU util, CPU, memory, recommendations
+zernel debug oom               # GPU OOM analysis with 6 fix suggestions
+zernel debug nan train.py      # Run with torch anomaly detection (traces NaN source)
+zernel debug hang              # NCCL deadlock diagnosis (env var configuration)
+zernel debug checkpoint ./ckpt # Verify structure, shapes, dtypes, size
+zernel debug trace train.py    # Run with CUDA_LAUNCH_BLOCKING=1 + stack traces
+```
+
+## Dataset Management (`zernel data`)
+
+```bash
+zernel data profile ./dataset.parquet  # Stats: rows, columns, schema, size
+zernel data profile ./images/          # Dir: file count, extensions, total size
+zernel data split ./data --train 0.8 --val 0.1 --seed 42   # Reproducible split
+zernel data shard ./data --shards 64   # Shard for distributed training
+zernel data cache ./data --to /nvme/cache   # rsync to fast storage
+zernel data benchmark --workers 8      # DataLoader throughput by worker count
+zernel data serve ./data --port 8888   # HTTP file server for multi-node
+```
+
+## Inference Server (`zernel serve`)
+
+```bash
+zernel serve start ./model             # Auto-detect engine (vLLM/TRT/ONNX)
+zernel serve start ./model --engine vllm --replicas 4   # Tensor-parallel
+zernel serve start ./model --quantize int8              # Quantized inference
+zernel serve list                      # Show running inference servers
+zernel serve stop my-model             # Stop server
+zernel serve benchmark http://localhost:8080 --qps 100  # Load test
+```
+
+## Model Hub (`zernel hub`)
+
+```bash
+zernel hub push ./model --name org/llama-finetune --tag v1  # Push to local hub
+zernel hub pull org/llama-finetune:v1                       # Pull from hub
+zernel hub list                        # List all hub entries
+zernel hub search "llama"              # Search by name
+```
+
+## Cluster Management (`zernel cluster`)
+
+```bash
+zernel cluster add gpu-server-01 --gpus 8 --user root  # Register node (SSH test)
+zernel cluster status                  # Live overview: all nodes, GPU util, memory
+zernel cluster ssh gpu-server-01       # SSH to a node
+zernel cluster sync ./code --to ~/     # rsync to all nodes
+zernel cluster run "nvidia-smi" --on all  # Run command on all nodes
+zernel cluster drain gpu-server-01     # Mark for maintenance
+```
+
+## GPU Cost Tracking (`zernel cost`)
+
+```bash
+zernel cost summary                    # Total jobs, GPU-hours, success rate
+zernel cost job job-123                # Cost for a specific job
+zernel cost budget --set 10000         # Set GPU-hour budget with alerts
+zernel cost report --month march       # Generate cost report
+```
+
+## Environment Management (`zernel env`)
+
+```bash
+zernel env show                        # Display current environment
+zernel env snapshot --output env.yml   # Save to file
+zernel env diff env-a.yml env-b.yml    # Compare two environments
+zernel env reproduce env.yml           # Recreate from snapshot
+zernel env export --format docker      # Generate Dockerfile
+zernel env export --format pip         # Generate requirements.txt
+```
+
+## Notebook Management (`zernel notebook`)
+
+```bash
+zernel notebook start --port 8888      # Launch Jupyter Lab
+zernel notebook open train.ipynb       # Open specific notebook
+zernel notebook convert train.ipynb --to py   # Convert to Python script
+zernel notebook list                   # List running servers
+zernel notebook stop                   # Stop all servers
+```
+
+## Package Manager (`zernel install`)
+
+```bash
+zernel install pytorch         # Install PyTorch + CUDA
+zernel install ollama          # Install Ollama local LLM
+zernel install jupyter         # Install Jupyter Lab
+zernel install vllm            # Install vLLM inference
+zernel install deepspeed       # Install DeepSpeed
+zernel install langchain       # Install LangChain
+zernel install all             # Install everything
+zernel install --list          # Show all 25+ available tools
+```

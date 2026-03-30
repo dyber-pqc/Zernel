@@ -145,22 +145,91 @@ See [docs/scheduler.md](docs/scheduler.md) for the full technical deep-dive.
 
 ---
 
-## CLI Commands
+## CLI Commands (30+ subcommands)
+
+### Core Workflow
 
 | Command | Description |
 |---------|-------------|
 | `zernel init <name>` | Scaffold a new ML project |
 | `zernel run <script>` | Run with automatic GPU detection, metric extraction, experiment tracking |
 | `zernel watch` | Full-screen TUI dashboard: GPU util, training metrics, eBPF telemetry |
+| `zernel doctor` | Diagnose GPU drivers, CUDA, PyTorch, zerneld, kernel config |
+| `zernel install <tool>` | Install ML tools (pytorch, ollama, jupyter, vllm, deepspeed, ...) |
+
+### GPU & Hardware
+
+| Command | Description |
+|---------|-------------|
+| `zernel gpu status` | Clean GPU overview (nvidia-smi replacement) |
+| `zernel gpu top` | Real-time GPU process viewer (htop for GPUs) |
+| `zernel gpu mem` | GPU memory usage by process |
+| `zernel gpu kill <id>` | Kill all processes on a GPU |
+| `zernel gpu lock <ids>` | Reserve GPUs for exclusive use |
+| `zernel gpu health` | ECC errors, throttling, PCIe bandwidth check |
+| `zernel bench all` | Run full ML benchmark suite (TFLOPS, memory BW, DataLoader, training) |
+| `zernel bench gpu` | GPU compute throughput at multiple matrix sizes |
+| `zernel bench e2e --model resnet50` | End-to-end training benchmark |
+
+### Training & Debugging
+
+| Command | Description |
+|---------|-------------|
 | `zernel exp list` | List all tracked experiments |
 | `zernel exp show <id>` | Show experiment details, hyperparameters, and metrics |
 | `zernel exp compare <a> <b>` | Diff hyperparameters and metrics between two experiments |
+| `zernel log --id <exp>` | Replay training output (--follow for active, --grep to filter) |
+| `zernel debug why-slow` | Diagnose training bottlenecks (GPU util, CPU, memory, I/O) |
+| `zernel debug oom` | Trace GPU out-of-memory with fix suggestions |
+| `zernel debug nan <script>` | Detect NaN gradients with autograd anomaly detection |
+| `zernel debug hang` | NCCL deadlock diagnosis guide |
+| `zernel debug checkpoint <path>` | Verify checkpoint integrity (structure, shapes, dtypes) |
+
+### Data Management
+
+| Command | Description |
+|---------|-------------|
+| `zernel data profile <path>` | Dataset stats (rows, columns, types, size, extension counts) |
+| `zernel data split <path>` | Split into train/val/test with reproducible seed |
+| `zernel data shard <path>` | Shard dataset for distributed training |
+| `zernel data cache <src> --to <dst>` | Cache dataset to fast storage (rsync) |
+| `zernel data benchmark` | Measure DataLoader throughput by worker count |
+
+### Models & Inference
+
+| Command | Description |
+|---------|-------------|
 | `zernel model save <path>` | Save a model checkpoint + metadata to the local registry |
-| `zernel model list` | List all registered models |
-| `zernel model deploy <name>` | Deploy a model for inference |
-| `zernel job submit <script>` | Submit a distributed training job |
-| `zernel doctor` | Diagnose GPU drivers, CUDA, PyTorch, zerneld, kernel config |
-| `zernel query "<ZQL>"` | Query experiments with SQL-like ZQL syntax |
+| `zernel model deploy <name> --target local\|docker\|sagemaker` | Deploy for inference |
+| `zernel serve start <model>` | Start inference server (auto-detect vLLM/TRT/ONNX, --replicas, --quantize) |
+| `zernel serve benchmark <url>` | Load test an inference endpoint (p50/p99/throughput) |
+| `zernel hub push <path> --name org/model` | Push to private model hub |
+| `zernel hub pull org/model` | Pull from hub |
+
+### Jobs & Cluster
+
+| Command | Description |
+|---------|-------------|
+| `zernel job submit <script>` | Distributed training (--target local\|ssh\|k8s, --gpus-per-node, --nodes) |
+| `zernel job list` | List jobs with status, GPUs, exit code |
+| `zernel job cancel <id>` | Cancel running job (SIGTERM/ssh kill/kubectl delete) |
+| `zernel cluster add <host>` | Register a GPU node (SSH connectivity test) |
+| `zernel cluster status` | Live cluster overview with GPU stats from all nodes |
+| `zernel cluster sync <path>` | rsync files to all cluster nodes |
+| `zernel cluster run <cmd>` | Execute command on all nodes |
+
+### Environment & Tools
+
+| Command | Description |
+|---------|-------------|
+| `zernel env snapshot` | Capture full environment (OS, Python, CUDA, pip packages) |
+| `zernel env diff <a> <b>` | Compare two environment snapshots |
+| `zernel env export --format docker` | Generate Dockerfile from current environment |
+| `zernel cost summary` | GPU usage and GPU-hours tracking |
+| `zernel cost budget --set <hours>` | Set GPU-hour budget with alerts |
+| `zernel notebook start` | Launch Jupyter Lab |
+| `zernel notebook convert <file> --to py` | Convert notebook to script |
+| `zernel query "<ZQL>"` | SQL-like queries across experiments, jobs, models |
 
 ---
 
@@ -168,18 +237,19 @@ See [docs/scheduler.md](docs/scheduler.md) for the full technical deep-dive.
 
 ```
 zernel/
-|-- zernel-scheduler/          # Layer 3: sched_ext ML-aware CPU scheduler (Rust + BPF)
-|-- zernel-ebpf/               # Layer 4: eBPF observability daemon (zerneld)
-|-- zernel-cli/                # Layer 5: Terminal-native CLI IDE
-|-- distro/                    # Layers 1-2: kernel config, sysctl, packages, installer
-|   |-- kernel/config/         # ML-optimized kernel .config
-|   |-- sysctl/                # Tuned sysctl parameters
-|   |-- packages/              # Base + NVIDIA package lists
-|   `-- installer/             # ISO builder and installer scripts
-|-- zernel-sdk/                # Python and Rust SDKs
-|-- docs/                      # Documentation
-|-- tests/                     # Integration and benchmark tests
-`-- scripts/                   # Build, test, and dev environment scripts
+|-- zernel-scheduler/          # sched_ext ML-aware CPU scheduler (Rust + BPF)
+|-- zernel-ebpf/               # eBPF observability daemon — zerneld (Rust + 5 BPF probes)
+|-- zernel-cli/                # CLI IDE — 30+ subcommands (Rust)
+|   `-- src/commands/          # gpu, bench, debug, data, cluster, serve, hub, cost, env, ...
+|-- zernel-dashboard/          # Web dashboard (axum + htmx + SSE)
+|-- distro/                    # Kernel config, sysctl, packages, GNOME, systemd, ISO
+|   |-- gnome/                 # GPU indicator extension + desktop branding
+|   |-- scripts/               # ML stack setup, zernel-install package manager
+|   |-- systemd/               # zerneld, scheduler, dashboard, ollama services
+|   `-- debian/                # 6 Debian packages
+|-- tests/                     # Integration + security tests (109 tests)
+|-- docs/                      # 9 documentation files
+`-- scripts/                   # Build, test, quickstart
 ```
 
 ---
@@ -208,7 +278,7 @@ zernel/
 # Build all components
 cargo build --workspace
 
-# Run the test suite (49 tests)
+# Run the test suite (109 tests)
 cargo test --workspace
 
 # Run lints
