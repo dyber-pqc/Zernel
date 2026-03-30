@@ -57,13 +57,21 @@ async fn main() -> Result<()> {
     info!("zerneld v{}", env!("CARGO_PKG_VERSION"));
 
     // Load BPF probes (or stub mode)
-    let bpf_active = loader::load_all_probes().is_ok();
+    let load_result = loader::load_all_probes().unwrap_or_else(|e| {
+        tracing::warn!("BPF probe loading failed: {e}");
+        loader::LoadResult {
+            status: loader::ProbeStatus::none(),
+        }
+    });
+
+    let active_probes = load_result.status.active_count();
+    info!(active_probes, "BPF probe status");
 
     // Shared metrics state
     let metrics = Arc::new(RwLock::new(AggregatedMetrics::default()));
 
     // If no BPF probes or --simulate, run simulator
-    let simulate = args.simulate || !bpf_active;
+    let simulate = args.simulate || active_probes == 0;
     if simulate {
         info!("running telemetry simulator (no BPF probes)");
         let sim_metrics = Arc::clone(&metrics);

@@ -8,7 +8,9 @@ description = "Zernel eBPF observability daemon (zerneld)"
 
 [features]
 default = []
-bpf = ["libbpf-rs"]
+# BPF probe compilation requires Linux + clang/llvm.
+# When enabled, build.rs compiles .bpf.c → .skel.rs via libbpf-cargo.
+bpf = ["libbpf-rs", "libbpf-cargo"]
 
 [dependencies]
 anyhow.workspace = true
@@ -25,3 +27,6 @@ tokio-tungstenite = "0.24"
 futures-util = "0.3"
 toml = "0.8"
 clap = { version = "4", features = ["derive", "env"] }
+
+[build-dependencies]
+libbpf-cargo = { version = "0.23", optional = true }
