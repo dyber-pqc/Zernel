@@ -31,13 +31,33 @@ jobs:
 
       - name: Run benchmarks
         run: |
-          cargo bench --bench scheduler_bench 2>&1 | tee bench_output.txt
-          cargo bench --bench extraction_bench 2>&1 | tee -a bench_output.txt
+          cargo bench --bench scheduler_bench 2>&1 | tee scheduler_bench.txt
+          cargo bench --bench extraction_bench 2>&1 | tee extraction_bench.txt
+
+      - name: Generate benchmark summary
+        if: always()
+        run: |
+          echo "## Zernel Performance Benchmarks" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### ML Scheduler" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          grep -E "^(test |Benchmarking|  time)" scheduler_bench.txt >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo "  (see artifacts for full output)" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Metric Extraction & ZQL Parser" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          grep -E "^(test |Benchmarking|  time)" extraction_bench.txt >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo "  (see artifacts for full output)" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "*Zernel — AI-Native Linux OS. [View full results in artifacts.]()*" >> $GITHUB_STEP_SUMMARY
 
       - name: Upload benchmark results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: benchmark-results
-          path: bench_output.txt
-          retention-days: 30
+          path: |
+            scheduler_bench.txt
+            extraction_bench.txt
+          retention-days: 90

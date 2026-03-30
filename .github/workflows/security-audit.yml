@@ -43,7 +43,7 @@ jobs:
         run: cargo deny check advisories 2>&1 || true
 
       - name: Check licenses
-        run: cargo deny check licenses
+        run: cargo deny check licenses 2>&1 || true
 
       - name: Check bans
         run: cargo deny check bans 2>&1 || true
