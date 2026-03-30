@@ -258,3 +258,65 @@ mod tests {
         assert_eq!(det.transition_count, 1);
     }
 }
+
+#[cfg(test)]
+mod proptests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        /// Phase detection must never panic for any input combination.
+        #[test]
+        fn detect_never_panics(
+            gpu_util in 0u8..=100,
+            io_wait in 0.0f32..=1.0,
+            cpu_burst in 0u64..=100_000_000,
+            gpu_sync in 0u64..=10_000_000_000u64,
+            nccl in proptest::bool::ANY,
+            futex in 0u32..=1000,
+            is_ml in proptest::bool::ANY,
+        ) {
+            let mut det = PhaseDetector::new(PhaseDetectorConfig {
+                phase_stability_count: 1,
+                nccl_detection_enabled: true,
+                ..Default::default()
+            });
+            let mut state = ZernelTaskState::new(1);
+            state.is_ml_process = is_ml;
+            state.gpu_utilization = gpu_util;
+            state.io_wait_fraction = io_wait;
+            state.cpu_burst_duration_ns = cpu_burst;
+            state.last_gpu_sync_ns = gpu_sync;
+            state.nccl_active = nccl;
+            state.futex_wait_count = futex;
+
+            // Must return a valid phase, never panic
+            let phase = det.detect(&state);
+            match phase {
+                WorkloadPhase::DataLoading
+                | WorkloadPhase::GpuCompute
+                | WorkloadPhase::NcclCollective
+                | WorkloadPhase::OptimizerStep
+                | WorkloadPhase::Unknown => {} // all valid
+            }
+        }
+
+        /// Non-ML processes always get Unknown phase.
+        #[test]
+        fn non_ml_always_unknown(
+            gpu_util in 0u8..=100,
+            io_wait in 0.0f32..=1.0,
+        ) {
+            let mut det = PhaseDetector::new(PhaseDetectorConfig {
+                phase_stability_count: 1,
+                ..Default::default()
+            });
+            let mut state = ZernelTaskState::new(1);
+            state.is_ml_process = false;
+            state.gpu_utilization = gpu_util;
+            state.io_wait_fraction = io_wait;
+
+            assert_eq!(det.detect(&state), WorkloadPhase::Unknown);
+        }
+    }
+}

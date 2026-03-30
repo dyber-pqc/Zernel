@@ -36,3 +36,9 @@ libc = "0.2"
 
 [dev-dependencies]
 tempfile = "3"
+criterion = { version = "0.5", features = ["html_reports"] }
+proptest = "1"
+
+[[bench]]
+name = "extraction_bench"
+harness = false

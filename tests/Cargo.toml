@@ -1,0 +1,16 @@
+[package]
+name = "zernel-tests"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[[test]]
+name = "cli_workflow"
+path = "integration/cli_workflow.rs"
+
+[[test]]
+name = "security"
+path = "integration/security.rs"
+
+[dependencies]
+tempfile = "3"

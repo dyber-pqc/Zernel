@@ -247,3 +247,40 @@ mod tests {
         assert!(parse("not a query").is_err());
     }
 }
+
+#[cfg(test)]
+mod proptests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        /// The ZQL parser must never panic on any input string.
+        #[test]
+        fn parse_never_panics(input in ".*") {
+            // Must return Ok or Err, never panic
+            let _ = parse(&input);
+        }
+
+        /// Parse is deterministic — same input always gives same result.
+        #[test]
+        fn parse_is_deterministic(input in ".*") {
+            let r1 = parse(&input);
+            let r2 = parse(&input);
+            match (&r1, &r2) {
+                (Ok(_), Ok(_)) => {} // both parsed (can't easily compare ZqlQuery)
+                (Err(e1), Err(e2)) => assert_eq!(e1, e2),
+                _ => panic!("non-deterministic parse"),
+            }
+        }
+
+        /// Valid SELECT queries always parse successfully.
+        #[test]
+        fn valid_select_always_parses(
+            col in "[a-z_]{1,10}",
+            table in "(experiments|jobs|models)",
+        ) {
+            let query = format!("SELECT {col} FROM {table}");
+            assert!(parse(&query).is_ok(), "failed to parse: {query}");
+        }
+    }
+}

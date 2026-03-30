@@ -4,6 +4,7 @@ members = [
     "zernel-scheduler",
     "zernel-ebpf",
     "zernel-cli",
+    "tests",
 ]
 
 [workspace.package]
