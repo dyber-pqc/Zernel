@@ -23,7 +23,7 @@ toml = "0.8"
 clap = { version = "4", features = ["derive", "env"] }
 
 [build-dependencies]
-libbpf-cargo = { version = "0.24", optional = true }
+libbpf-cargo = { version = "0.26", optional = true }
 
 [dev-dependencies]
 tempfile = "3"
