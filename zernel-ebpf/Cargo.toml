@@ -25,7 +25,7 @@ hyper-util = { version = "0.1", features = ["tokio"] }
 http-body-util = "0.1"
 tokio-tungstenite = "0.26"
 futures-util = "0.3"
-toml = "0.8"
+toml = "1.1"
 clap = { version = "4", features = ["derive", "env"] }
 quick-xml = "0.37"
 
