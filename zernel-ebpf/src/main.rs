@@ -13,6 +13,7 @@ mod aggregation;
 mod alerts;
 mod consumers;
 mod fallback;
+mod gpu_watchdog;
 mod loader;
 mod metrics_server;
 mod nccl_priority;

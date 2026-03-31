@@ -106,6 +106,18 @@ enum Commands {
     /// Model marketplace — publish, browse, download, deploy
     #[command(subcommand)]
     Marketplace(commands::marketplace::MarketplaceCommands),
+    /// Adaptive kernel parameter tuning based on hardware
+    #[command(subcommand)]
+    Tune(commands::tune::TuneCommands),
+    /// Live job migration between GPUs
+    #[command(subcommand)]
+    Migrate(commands::migrate::MigrateCommands),
+    /// Full training pipeline profiler with waterfall
+    #[command(subcommand)]
+    Profile(commands::profile::ProfileCommands),
+    /// System hardening for production ML
+    #[command(subcommand)]
+    Secure(commands::secure::SecureCommands),
     /// GPU fleet management — cost attribution, idle detection, capacity planning
     #[command(subcommand)]
     Fleet(commands::fleet::FleetCommands),
@@ -162,6 +174,10 @@ async fn main() -> Result<()> {
         Commands::Autopilot(cmd) => commands::autopilot::run(cmd).await,
         Commands::Cloud(cmd) => commands::cloud::run(cmd).await,
         Commands::Marketplace(cmd) => commands::marketplace::run(cmd).await,
+        Commands::Tune(cmd) => commands::tune::run(cmd).await,
+        Commands::Migrate(cmd) => commands::migrate::run(cmd).await,
+        Commands::Profile(cmd) => commands::profile::run(cmd).await,
+        Commands::Secure(cmd) => commands::secure::run(cmd).await,
         Commands::Pqc(cmd) => commands::pqc::run(cmd).await,
         Commands::Fleet(cmd) => commands::fleet::run(cmd).await,
         Commands::Audit(cmd) => commands::audit::run(cmd).await,
