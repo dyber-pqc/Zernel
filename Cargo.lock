@@ -3588,6 +3588,7 @@ dependencies = [
  "hyper-util",
  "libbpf-cargo",
  "libbpf-rs",
+ "libc",
  "quick-xml",
  "serde",
  "serde_json",
