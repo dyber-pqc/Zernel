@@ -48,3 +48,5 @@ Thumbs.db
 .claude/
 output/
 output/
+.wrangler/
+upload_iso.py
