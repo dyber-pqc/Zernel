@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>How We Built an OS That Understands ML Workloads — Zernel</title>
+    <meta name="description" content="The technical story behind Zernel: building a Linux distribution where the kernel scheduler, eBPF probes, and power management all understand machine learning.">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Georgia, 'Times New Roman', serif; background: #0f172a; color: #cbd5e1; line-height: 1.8; }
+        article { max-width: 720px; margin: 0 auto; padding: 60px 20px; }
+        h1 { font-family: -apple-system, sans-serif; font-size: 40px; font-weight: 800; color: #f1f5f9; margin-bottom: 16px; line-height: 1.2; }
+        h2 { font-family: -apple-system, sans-serif; font-size: 28px; color: #f1f5f9; margin: 48px 0 16px; }
+        h3 { font-family: -apple-system, sans-serif; font-size: 20px; color: #22d3ee; margin: 32px 0 12px; }
+        p { margin-bottom: 20px; font-size: 18px; }
+        a { color: #22d3ee; }
+        .meta { color: #64748b; font-size: 16px; margin-bottom: 40px; font-family: -apple-system, sans-serif; }
+        code { background: #1e293b; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 16px; color: #e2e8f0; }
+        pre { background: #1e293b; padding: 20px; border-radius: 8px; overflow-x: auto; margin: 20px 0; font-size: 15px; line-height: 1.5; }
+        pre code { background: none; padding: 0; }
+        blockquote { border-left: 3px solid #22d3ee; padding-left: 20px; color: #94a3b8; font-style: italic; margin: 24px 0; }
+        .back { font-family: -apple-system, sans-serif; font-size: 14px; margin-bottom: 40px; }
+        .back a { color: #94a3b8; text-decoration: none; }
+        hr { border: none; border-top: 1px solid #334155; margin: 48px 0; }
+    </style>
+</head>
+<body>
+<article>
+    <div class="back"><a href="/">← zernel.org</a></div>
+
+    <h1>How We Built an OS That Understands ML Workloads</h1>
+    <div class="meta">By Zachary Kleckner · Dyber, Inc. · March 2026</div>
+
+    <p>Every ML platform today runs on top of a general-purpose operating system. The kernel doesn't know the difference between a data loading thread and a CUDA synchronization call. It can't tell when your GPU is starving for data. It doesn't know that NCCL all-reduce is the critical path in your distributed training.</p>
+
+    <p>We asked: what if the OS itself understood machine learning?</p>
+
+    <p>That question led us to build <a href="https://github.com/dyber-pqc/Zernel">Zernel</a> — a complete Linux distribution where the CPU scheduler, memory manager, network stack, and observability layer all understand ML workloads natively.</p>
+
+    <h2>The Insight: ML Has Predictable Phases</h2>
+
+    <p>If you profile any ML training job, you'll see a repeating pattern:</p>
+
+    <pre><code>[Data Loading] → [Forward Pass] → [Backward Pass] → [All-Reduce] → [Optimizer Step]</code></pre>
+
+    <p>Each phase has completely different system requirements:</p>
+
+    <ul style="margin: 20px 0; padding-left: 24px;">
+        <li style="margin: 8px 0;"><strong>Data Loading</strong>: CPU-intensive, I/O-heavy, GPU idle. The CPU should be running data workers at maximum priority.</li>
+        <li style="margin: 8px 0;"><strong>GPU Compute</strong>: GPU at 100%, CPU mostly idle. The CPU scheduler should yield immediately — every cycle wasted here delays the next data batch.</li>
+        <li style="margin: 8px 0;"><strong>NCCL Collective</strong>: Network-heavy. The network stack should prioritize NCCL traffic above everything else.</li>
+        <li style="margin: 8px 0;"><strong>Optimizer Step</strong>: Brief CPU burst. Should preempt everything to minimize GPU idle time.</li>
+    </ul>
+
+    <p>The standard Linux scheduler (CFS) treats all these phases identically. It has no concept of GPU utilization, NCCL collectives, or data pipeline starvation. It just round-robins CPU time according to process niceness.</p>
+
+    <h2>The Technical Approach: sched_ext + eBPF</h2>
+
+    <p>Linux 6.12 merged <code>sched_ext</code> — a framework for writing fully custom CPU schedulers as BPF programs that load into the kernel at runtime. This is the exact capability we needed: a way to replace the CPU scheduler without forking the kernel.</p>
+
+    <p>Zernel's scheduler is written in Rust (userspace daemon) + C (BPF kernel program). The userspace component maintains per-task state and runs phase detection. The BPF component reads scheduling decisions from a shared map and applies them at microsecond granularity.</p>
+
+    <h3>Phase Detection</h3>
+
+    <p>We classify each ML process into one of five phases using these heuristics:</p>
+
+    <pre><code>DataLoading:    io_wait &gt; 30% AND gpu_utilization &lt; 10%
+GpuCompute:     gpu_utilization &gt; 80% AND cpu_burst = 0
+NcclCollective: nccl_shm active AND futex_wait_count &gt; 0
+OptimizerStep:  cpu_burst &lt; 5ms AND last_gpu_sync recent
+Unknown:        default (CFS-equivalent behavior)</code></pre>
+
+    <p>Phase transitions are debounced with a stability counter to prevent scheduling flap.</p>
+
+    <h3>NUMA-Aware CPU Selection</h3>
+
+    <p>On multi-socket GPU servers, the scheduler reads NUMA topology from <code>/sys</code> and pins tasks to CPUs on the same NUMA node as their GPU. This eliminates cross-socket memory access latency for data transfers.</p>
+
+    <h3>Phase-Aware Power Management</h3>
+
+    <p>This is where the energy savings come from. During the DataLoading phase, the GPU is mostly idle — there's no reason to run it at full clock speed. Zernel dynamically adjusts GPU clocks per phase:</p>
+
+    <pre><code>DataLoading:    33% GPU clock, 100% memory clock → ~60% power
+GpuCompute:     100% GPU clock, 100% memory clock → 100% power
+NcclCollective: 50% GPU clock, 100% memory clock → ~70% power</code></pre>
+
+    <p>On an 8xH100 cluster drawing 5kW, this saves 10-20% energy — roughly $4,000-8,000 per year per rack in electricity costs.</p>
+
+    <h2>Beyond the Scheduler: 50+ Tools</h2>
+
+    <p>The scheduler is Zernel's technical core, but the product needed to be more than a kernel patch. We built a complete terminal-native development environment: experiment tracking, GPU management, ML benchmarks, training debugger, model registry, distributed job orchestration, fleet management, compliance auditing, and post-quantum cryptographic protection for model weights.</p>
+
+    <p>Every tool is designed around one principle: <strong>zero code changes</strong>. Your existing PyTorch, JAX, and vLLM scripts run unchanged. Zernel observes and optimizes at the kernel level.</p>
+
+    <h2>What We Learned</h2>
+
+    <p><strong>The hard part isn't the kernel work.</strong> sched_ext makes it surprisingly straightforward to write a custom scheduler. The hard part is building the complete product around it — the observability, the CLI, the packaging, the documentation, the testing — everything that turns a kernel feature into something a team would actually adopt.</p>
+
+    <p><strong>eBPF is the right observability tool for ML.</strong> Traditional profiling requires code instrumentation. eBPF instruments at the kernel level — zero overhead, zero code changes, works with any ML framework. Our five probes (GPU memory, CUDA latency, NCCL, DataLoader, distributed sync) provide telemetry that no application-level tool can match.</p>
+
+    <p><strong>Energy optimization is underrated.</strong> Everyone focuses on throughput (images/second, tokens/second). But at scale, energy costs are a significant part of GPU TCO. Phase-aware power management is a genuine competitive advantage that compounds over time.</p>
+
+    <h2>Try It</h2>
+
+    <p>Zernel is open-source (kernel components GPL-2.0, CLI proprietary). You can:</p>
+
+    <pre><code>git clone https://github.com/dyber-pqc/Zernel.git
+cd Zernel && cargo build --workspace --release
+./target/release/zernel doctor
+./target/release/zernel bench quick</code></pre>
+
+    <p>Or download the bootable ISO at <a href="https://zernel.org">zernel.org</a> and install it on your GPU server.</p>
+
+    <p>We'd love feedback — especially from teams running large GPU clusters. What would make you switch your OS?</p>
+
+    <hr>
+
+    <p style="color: #64748b; font-size: 14px;">
+        <a href="https://github.com/dyber-pqc/Zernel">GitHub</a> ·
+        <a href="https://zernel.org">zernel.org</a> ·
+        <a href="https://dyber.org">Dyber, Inc.</a>
+    </p>
+</article>
+</body>
+</html>

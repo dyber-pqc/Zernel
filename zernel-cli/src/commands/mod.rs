@@ -1,7 +1,9 @@
 // Copyright (C) 2026 Dyber, Inc. — Proprietary
 
 pub mod audit;
+pub mod autopilot;
 pub mod bench;
+pub mod cloud;
 pub mod cluster;
 pub mod cost;
 pub mod data;
@@ -17,6 +19,7 @@ pub mod job;
 pub mod job_k8s;
 pub mod job_ssh;
 pub mod log;
+pub mod marketplace;
 pub mod model;
 pub mod notebook;
 pub mod onboard;

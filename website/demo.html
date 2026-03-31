@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Zernel Demo — AI-Native Linux OS</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #0f172a; color: #e2e8f0; font-family: -apple-system, sans-serif; }
+        .container { max-width: 900px; margin: 40px auto; padding: 0 20px; }
+        h1 { color: #22d3ee; text-align: center; margin-bottom: 8px; }
+        .subtitle { text-align: center; color: #94a3b8; margin-bottom: 32px; }
+        .terminal { background: #1e293b; border-radius: 12px; overflow: hidden; border: 1px solid #334155; }
+        .terminal-header { background: #334155; padding: 8px 16px; display: flex; gap: 8px; }
+        .terminal-header .dot { width: 12px; height: 12px; border-radius: 50%; }
+        .terminal-header .dot.red { background: #ef4444; }
+        .terminal-header .dot.yellow { background: #eab308; }
+        .terminal-header .dot.green { background: #22c55e; }
+        .terminal-header .title { color: #94a3b8; font-size: 13px; margin-left: 8px; }
+        .terminal-body { padding: 20px; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 14px; line-height: 1.6; min-height: 400px; }
+        .line { opacity: 0; animation: fadeIn 0.3s forwards; white-space: pre-wrap; }
+        .prompt { color: #22d3ee; }
+        .cmd { color: #f1f5f9; font-weight: 600; }
+        .output { color: #94a3b8; }
+        .success { color: #22c55e; }
+        .warn { color: #eab308; }
+        .info { color: #22d3ee; }
+        .highlight { color: #a78bfa; }
+        .controls { text-align: center; margin-top: 16px; }
+        .controls button { background: #22d3ee; color: #0f172a; border: none; padding: 10px 24px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 14px; }
+        .controls button:hover { background: #06b6d4; }
+        .back { text-align: center; margin-top: 24px; }
+        .back a { color: #94a3b8; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Zernel in Action</h1>
+    <p class="subtitle">Watch Zernel manage a complete ML workflow in 60 seconds</p>
+
+    <div class="terminal">
+        <div class="terminal-header">
+            <div class="dot red"></div>
+            <div class="dot yellow"></div>
+            <div class="dot green"></div>
+            <span class="title">zernel@gpu-server:~</span>
+        </div>
+        <div class="terminal-body" id="terminal"></div>
+    </div>
+
+    <div class="controls">
+        <button onclick="runDemo()">▶ Play Demo</button>
+        <button onclick="location.reload()">↻ Restart</button>
+    </div>
+
+    <div class="back">
+        <a href="/">← Back to zernel.org</a>
+    </div>
+</div>
+
+<script>
+const lines = [
+    { type: 'prompt', text: '$ zernel doctor', delay: 500 },
+    { type: 'output', text: 'Zernel Doctor v0.1.0', delay: 200 },
+    { type: 'output', text: '==================================================', delay: 100 },
+    { type: 'success', text: '  [OK]   Operating System: Linux 6.12.1-zernel (x86_64)', delay: 150 },
+    { type: 'success', text: '  [OK]   Python: Python 3.12.3', delay: 100 },
+    { type: 'success', text: '  [OK]   NVIDIA Driver: driver v570.86.15', delay: 100 },
+    { type: 'success', text: '  [OK]   CUDA Toolkit: CUDA 12.8', delay: 100 },
+    { type: 'success', text: '  [OK]   PyTorch: PyTorch 2.10.0', delay: 100 },
+    { type: 'success', text: '  [OK]   PyTorch CUDA: CUDA available — 1 GPU(s)', delay: 100 },
+    { type: 'success', text: '  [OK]   zerneld: running on port 9091', delay: 100 },
+    { type: 'output', text: '', delay: 300 },
+
+    { type: 'prompt', text: '$ zernel gpu status', delay: 800 },
+    { type: 'output', text: 'Zernel GPU Status', delay: 200 },
+    { type: 'output', text: '================================================================================', delay: 100 },
+    { type: 'info', text: 'GPU   Name                   Util  Memory         Temp   Power      Limit', delay: 100 },
+    { type: 'output', text: '0     NVIDIA A100-SXM4-80GB  [##########] 94%  76423/81920 MB  72°C   287W/400W', delay: 150 },
+    { type: 'output', text: '', delay: 400 },
+
+    { type: 'prompt', text: '$ zernel run train.py', delay: 800 },
+    { type: 'output', text: 'Zernel Run', delay: 200 },
+    { type: 'info', text: '  Experiment: exp-20260331-143022-a7f3bc21', delay: 100 },
+    { type: 'output', text: '  Script:     train.py', delay: 100 },
+    { type: 'success', text: '  Tracking:   enabled', delay: 100 },
+    { type: 'output', text: '', delay: 300 },
+    { type: 'output', text: 'Training ResNet-50 on A100...', delay: 200 },
+    { type: 'highlight', text: 'epoch: 1  loss: 6.9078  throughput: 942 images/s  step: 100', delay: 600 },
+    { type: 'highlight', text: 'epoch: 2  loss: 6.8234  throughput: 948 images/s  step: 200', delay: 600 },
+    { type: 'highlight', text: 'epoch: 3  loss: 6.7891  throughput: 951 images/s  step: 300', delay: 600 },
+    { type: 'success', text: 'Training complete!', delay: 200 },
+    { type: 'output', text: '', delay: 100 },
+    { type: 'output', text: '---', delay: 100 },
+    { type: 'success', text: '  Status:    Done', delay: 100 },
+    { type: 'output', text: '  Duration:  34.2s', delay: 100 },
+    { type: 'info', text: '  Metrics:   loss: 6.7891  throughput: 951.0000', delay: 100 },
+    { type: 'output', text: '', delay: 400 },
+
+    { type: 'prompt', text: '$ zernel exp list', delay: 800 },
+    { type: 'output', text: 'ID                           Name        Status     Loss       Acc    Duration', delay: 200 },
+    { type: 'output', text: '-----------------------------------------------------------------------------------------------', delay: 100 },
+    { type: 'info', text: 'exp-20260331-143022-a7f3bc21 train       Done       6.7891      -     34.2s', delay: 150 },
+    { type: 'output', text: '', delay: 400 },
+
+    { type: 'prompt', text: '$ zernel debug why-slow', delay: 800 },
+    { type: 'output', text: 'Zernel Performance Diagnosis', delay: 200 },
+    { type: 'success', text: '  [1/4] GPU Utilization: GPU 0: 94% — GOOD — GPU well utilized', delay: 200 },
+    { type: 'success', text: '  [2/4] CPU: Load 2.1 (8 cores, 26% utilized) — OK', delay: 200 },
+    { type: 'success', text: '  [3/4] Memory: 23% used (29 / 128 GB) — OK', delay: 200 },
+    { type: 'info', text: '  [4/4] All systems healthy. Training is GPU-bound (optimal).', delay: 200 },
+    { type: 'output', text: '', delay: 400 },
+
+    { type: 'prompt', text: '$ zernel pqc keygen --name prod', delay: 800 },
+    { type: 'success', text: '  Key ID:    a7f3bc21e9d04f82', delay: 200 },
+    { type: 'output', text: '  Algorithm: ML-DSA-65 + ML-KEM-768 (hybrid)', delay: 100 },
+    { type: 'output', text: '', delay: 200 },
+
+    { type: 'prompt', text: '$ zernel pqc sign ./model --key prod', delay: 600 },
+    { type: 'success', text: '  Signature: ./model.zernel-sig', delay: 200 },
+    { type: 'info', text: '  Model weights are now quantum-resistant signed ✓', delay: 200 },
+    { type: 'output', text: '', delay: 400 },
+
+    { type: 'prompt', text: '$ zernel power carbon', delay: 800 },
+    { type: 'output', text: 'Carbon Footprint Estimate', delay: 200 },
+    { type: 'output', text: '  Current power: 287W', delay: 100 },
+    { type: 'info', text: '  Per hour:      0.287 kWh → 0.121 kg CO2', delay: 100 },
+    { type: 'info', text: '  Per month:     206.6 kWh → 86.8 kg CO2', delay: 100 },
+    { type: 'highlight', text: '  With Zernel power mgmt: save 10-20% → $840-1680/year per rack', delay: 200 },
+    { type: 'output', text: '', delay: 400 },
+
+    { type: 'prompt', text: '$ _', delay: 0 },
+];
+
+const terminal = document.getElementById('terminal');
+let lineIndex = 0;
+
+function addLine(line) {
+    const div = document.createElement('div');
+    div.className = 'line';
+
+    if (line.type === 'prompt') {
+        div.innerHTML = `<span class="prompt">zernel@gpu-server:~</span> <span class="cmd">${line.text.substring(2)}</span>`;
+    } else {
+        div.className = `line ${line.type}`;
+        div.textContent = line.text;
+    }
+
+    div.style.animationDelay = '0s';
+    terminal.appendChild(div);
+    terminal.scrollTop = terminal.scrollHeight;
+}
+
+async function runDemo() {
+    terminal.innerHTML = '';
+    for (const line of lines) {
+        await new Promise(r => setTimeout(r, line.delay));
+        addLine(line);
+    }
+}
+
+// Auto-play on load
+setTimeout(runDemo, 1000);
+</script>
+</body>
+</html>

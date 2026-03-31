@@ -97,6 +97,15 @@ enum Commands {
     /// Training optimizations — precision, memory, checkpoints, NUMA
     #[command(subcommand)]
     Optimize(commands::optimize::OptimizeCommands),
+    /// Autonomous training optimizer — monitors and fixes problems automatically
+    #[command(subcommand)]
+    Autopilot(commands::autopilot::AutopilotCommands),
+    /// GPU cloud management — launch, manage, destroy clusters
+    #[command(subcommand)]
+    Cloud(commands::cloud::CloudCommands),
+    /// Model marketplace — publish, browse, download, deploy
+    #[command(subcommand)]
+    Marketplace(commands::marketplace::MarketplaceCommands),
     /// GPU fleet management — cost attribution, idle detection, capacity planning
     #[command(subcommand)]
     Fleet(commands::fleet::FleetCommands),
@@ -150,6 +159,9 @@ async fn main() -> Result<()> {
         Commands::Notebook(cmd) => commands::notebook::run(cmd).await,
         Commands::Power(cmd) => commands::power::run(cmd).await,
         Commands::Optimize(cmd) => commands::optimize::run(cmd).await,
+        Commands::Autopilot(cmd) => commands::autopilot::run(cmd).await,
+        Commands::Cloud(cmd) => commands::cloud::run(cmd).await,
+        Commands::Marketplace(cmd) => commands::marketplace::run(cmd).await,
         Commands::Pqc(cmd) => commands::pqc::run(cmd).await,
         Commands::Fleet(cmd) => commands::fleet::run(cmd).await,
         Commands::Audit(cmd) => commands::audit::run(cmd).await,
