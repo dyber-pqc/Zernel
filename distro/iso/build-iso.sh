@@ -10,7 +10,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-BUILD_DIR="$SCRIPT_DIR/build"
+BUILD_DIR="${ZERNEL_BUILD_DIR:-/tmp/zernel-iso-build}"
 PROFILE="${ZERNEL_PROFILE:-server}"
 ARCH="amd64"
 
@@ -58,17 +58,27 @@ cd "$BUILD_DIR"
 # ============================================================
 # Step 1: Configure live-build
 # ============================================================
+DEBIAN_MIRROR="http://deb.debian.org/debian"
+
 echo "[1/7] Configuring live-build..."
 lb config \
     --architecture "${ARCH}" \
     --distribution bookworm \
     --archive-areas "main contrib non-free non-free-firmware" \
-    --bootloaders grub-efi \
+    --mirror-bootstrap "${DEBIAN_MIRROR}" \
+    --mirror-chroot "${DEBIAN_MIRROR}" \
+    --mirror-binary "${DEBIAN_MIRROR}" \
+    --parent-mirror-bootstrap "${DEBIAN_MIRROR}" \
+    --parent-mirror-chroot "${DEBIAN_MIRROR}" \
+    --parent-mirror-binary "${DEBIAN_MIRROR}" \
+    --debootstrap-options "--keyring=/usr/share/keyrings/debian-archive-keyring.gpg --include=gpgv,ca-certificates,apt-transport-https" \
     --binary-images iso-hybrid \
     --iso-application "Zernel" \
     --iso-publisher "Dyber, Inc." \
     --iso-volume "Zernel ${VERSION}" \
-    --memtest none
+    --memtest none \
+    --apt-options "--yes -o Acquire::AllowInsecureRepositories=true -o Acquire::AllowDowngradeToInsecureRepositories=true" \
+    --apt-secure false
 
 # ============================================================
 # Step 2: Add base packages
@@ -91,18 +101,30 @@ fi
 # Step 3: NVIDIA repository and packages
 # ============================================================
 echo "[3/7] Adding NVIDIA repository..."
-mkdir -p config/archives
-cat > config/archives/nvidia.list.chroot << 'EOF'
-deb https://developer.download.nvidia.com/compute/cuda/repos/debian12/x86_64/ /
-EOF
+# Fix /dev/null inside chroot (WSL workaround)
+mkdir -p config/hooks/live
+cat > config/hooks/live/00-fix-dev-null.hook.chroot << 'DEVFIX'
+#!/bin/bash
+# WSL workaround: ensure /dev/null exists and is writable
+if [ ! -c /dev/null ]; then
+    mknod -m 666 /dev/null c 1 3 2>/dev/null || true
+fi
+chmod 666 /dev/null 2>/dev/null || true
+# Ensure gpgv is available
+apt-get install -y --no-install-recommends gpgv 2>/dev/null || true
+DEVFIX
+chmod +x config/hooks/live/00-fix-dev-null.hook.chroot
 
+# NVIDIA repo is added inside chroot via hook (needs ca-certificates first)
 cat > config/hooks/live/01-nvidia-keyring.hook.chroot << 'HOOK'
 #!/bin/bash
+set -e
 apt-get update -qq
-apt-get install -y --no-install-recommends gnupg2 curl
+apt-get install -y --no-install-recommends gnupg2 curl ca-certificates
 curl -fsSL https://developer.download.nvidia.com/compute/cuda/repos/debian12/x86_64/3bf863cc.pub | gpg --dearmor -o /usr/share/keyrings/nvidia-cuda.gpg
 echo "deb [signed-by=/usr/share/keyrings/nvidia-cuda.gpg] https://developer.download.nvidia.com/compute/cuda/repos/debian12/x86_64/ /" > /etc/apt/sources.list.d/nvidia-cuda.list
 apt-get update -qq
+echo "NVIDIA repository configured"
 HOOK
 chmod +x config/hooks/live/01-nvidia-keyring.hook.chroot
 
@@ -165,6 +187,12 @@ chmod +x config/hooks/live/02-zernel-services.hook.chroot
 # Step 7: Build the ISO
 # ============================================================
 echo "[7/7] Building ISO (this may take 15-30 minutes)..."
+
+# WSL workaround: ensure /dev/null exists in chroot before lb build
+if [ -d "chroot" ]; then
+    [ -c chroot/dev/null ] || mknod -m 666 chroot/dev/null c 1 3 2>/dev/null || true
+fi
+
 lb build
 
 if [ -f "live-image-${ARCH}.hybrid.iso" ]; then

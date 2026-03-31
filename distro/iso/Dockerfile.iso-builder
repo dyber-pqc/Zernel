@@ -1,0 +1,36 @@
+# Zernel ISO Builder — Docker-based
+# Copyright (C) 2026 Dyber, Inc.
+#
+# Builds the Zernel ISO inside a proper Debian container,
+# avoiding WSL chroot/device limitations.
+#
+# Usage:
+#   cd /path/to/zernel
+#   docker build -f distro/iso/Dockerfile.iso-builder -t zernel-iso-builder .
+#   docker run --privileged -v $(pwd)/output:/output zernel-iso-builder
+#
+# The ISO will appear at ./output/zernel-*.iso
+
+FROM debian:bookworm
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    live-build debootstrap squashfs-tools \
+    curl git ca-certificates \
+    build-essential pkg-config libssl-dev \
+    debian-archive-keyring \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Rust
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+WORKDIR /zernel
+COPY . .
+
+RUN mkdir -p /output
+
+CMD ["bash", "-c", "\
+    export ZERNEL_BUILD_DIR=/tmp/zernel-iso-build && \
+    ./distro/iso/build-iso.sh --profile server && \
+    cp distro/iso/zernel-*.iso /output/ 2>/dev/null && \
+    echo 'ISO files:' && ls -lh /output/*.iso 2>/dev/null || echo 'ISO build failed'"]

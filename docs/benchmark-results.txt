@@ -1,0 +1,53 @@
+Zernel ML Benchmark Suite
+============================================================
+GPU: NVIDIA A100-SXM4-80GB
+Memory: 85.1 GB
+PyTorch: 2.10.0+cu128
+CUDA: 12.8
+
+[1/7] GPU Compute Throughput
+  2048x2048: 8.9 TFLOPS (1.92 ms/op)
+  4096x4096: 19.0 TFLOPS (7.22 ms/op)
+  8192x8192: 19.2 TFLOPS (57.31 ms/op)
+
+[2/7] GPU Memory Bandwidth
+  690 GB/s
+
+[3/7] Host→Device Transfer
+  4.5 GB/s
+
+[4/7] DataLoader Throughput
+  workers=0: 6332 samples/s (1.58s)
+  workers=2: 3159 samples/s (3.17s)
+  workers=4: 3413 samples/s (2.93s)
+
+[5/7] Training Step (FP32)
+  4.48 ms/step
+
+[6/7] Training Step (FP16 AMP)
+  2.49 ms/step (1.8x vs FP32)
+
+[7/7] ResNet-50 Training Throughput
+  942 images/s (34.0 ms/step)
+
+============================================================
+ZERNEL BENCHMARK RESULTS — NVIDIA A100-SXM4-80GB
+------------------------------------------------------------
+  GPU Compute (4096x4096)        19.0 TFLOPS
+  Memory Bandwidth               690 GB/s
+  H2D Transfer                   4.5 GB/s
+  DataLoader (4 workers)         3413 samples/s
+  Training Step (FP32)           4.48 ms/step
+  Training Step (FP16)           2.49 ms/step (1.8x vs FP32)
+  ResNet-50 Training             942 images/s (34.0 ms/step)
+------------------------------------------------------------
+
+GPU: NVIDIA A100-SXM4-80GB
+GPU Memory: 85 GB
+CUDA Cores: 108 SMs
+PyTorch: 2.10.0+cu128
+CUDA: 12.8
+
+Zernel — AI-Native Linux OS
+Copyright (C) 2026 Dyber, Inc.
+https://github.com/dyber-pqc/Zernel

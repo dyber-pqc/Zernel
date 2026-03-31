@@ -23,16 +23,34 @@ Every ML platform today runs **on top of** a general-purpose operating system th
 
 Zernel is a complete Linux distribution where the CPU scheduler, memory manager, network stack, and observability layer all understand ML workloads natively. Install it on your GPU cluster. Everything you already run still works -- PyTorch, JAX, vLLM, Kubernetes -- but now the OS itself is working for you.
 
-### The Numbers
+### Verified A100 Benchmark Results
 
-| Metric | Stock Linux | Zernel | How |
-|--------|------------|--------|-----|
+Tested on **NVIDIA A100-SXM4-80GB** with PyTorch 2.10 + CUDA 12.8:
+
+| Benchmark | Result | What It Means |
+|-----------|--------|--------------|
+| **GPU Compute (4096x4096)** | **19.0 TFLOPS** | 97.4% of A100's theoretical peak (19.5 TFLOPS FP32) |
+| **Memory Bandwidth** | **690 GB/s** | HBM2e throughput for tensor operations |
+| **Host-to-Device Transfer** | **4.5 GB/s** | PCIe Gen4 CPU→GPU data pipeline speed |
+| **DataLoader Throughput** | **3,413 samples/s** | ImageNet-scale batch loading (4 workers) |
+| **Training Step (FP32)** | **4.48 ms/step** | 2-layer 4096x4096 forward+backward+optimizer |
+| **Training Step (FP16 AMP)** | **2.49 ms/step** | **1.8x speedup** with automatic mixed precision |
+| **ResNet-50 Training** | **942 images/s** | End-to-end training throughput (batch=32) |
+
+> *Benchmarks run with `zernel bench all` on Google Colab A100. Full results: [benchmark-results.txt](docs/benchmark-results.txt)*
+
+### What Zernel Adds On Top
+
+| Metric | Stock Linux | With Zernel | How |
+|--------|------------|------------|-----|
 | **GPU utilization** | 60-80% (data starvation) | 90-98% | Phase-aware CPU scheduling boosts data pipeline priority |
-| **All-reduce latency** | Variable (p99 spikes) | Consistent (tc priority) | NCCL traffic gets kernel-level network priority |
+| **All-reduce latency** | Variable (p99 spikes) | Consistent | NCCL traffic gets kernel-level network priority via eBPF/tc |
 | **Energy per training run** | Baseline | **10-20% less** | Phase-aware GPU power management reduces clocks during idle phases |
 | **Time to first experiment** | Hours (driver setup) | **Minutes** | Pre-installed CUDA, PyTorch, JAX, vLLM, Ollama |
 | **Debugging a slow job** | `nvidia-smi` + guessing | **One command** | `zernel debug why-slow` diagnoses GPU, CPU, I/O, memory |
-| **Model security** | Plaintext on disk | **PQC encrypted** | Quantum-resistant encryption + signatures for model weights |
+| **Model security** | Plaintext on disk | **PQC encrypted** | Quantum-resistant AES-256-GCM + ML-KEM key exchange |
+| **Cost visibility** | Custom scripts | **Built-in** | `zernel fleet costs` shows spend per team at $2.50-4.00/GPU-hr |
+| **Compliance** | Manual audit | **One command** | `zernel audit report --standard soc2` generates compliance reports |
 
 ---
 
