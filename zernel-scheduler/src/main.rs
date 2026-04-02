@@ -1,10 +1,6 @@
 // Copyright (C) 2026 Dyber, Inc. — GPL-2.0
 //
 // Zernel sched_ext ML Scheduler
-//
-// Userspace daemon: loads sched_ext BPF scheduler into the kernel,
-// maintains per-task state, runs phase detection, writes scheduling
-// decisions to BPF maps. Continuous loop with configurable interval.
 #![allow(dead_code)]
 
 mod config;
@@ -20,6 +16,10 @@ use clap::Parser;
 use config::SchedulerConfig;
 use std::path::PathBuf;
 use tracing::info;
+#[cfg(feature = "bpf")]
+use libbpf_rs::skel::{SkelBuilder, OpenSkel, Skel};
+#[cfg(feature = "bpf")]
+use libbpf_rs::MapCore;
 
 const DEFAULT_CONFIG_PATH: &str = "/etc/zernel/scheduler.toml";
 
@@ -28,17 +28,17 @@ const DEFAULT_CONFIG_PATH: &str = "/etc/zernel/scheduler.toml";
 #[command(about = "Zernel sched_ext ML-Aware CPU Scheduler")]
 #[command(version)]
 struct Args {
-    /// Path to scheduler configuration file
     #[arg(long, default_value = DEFAULT_CONFIG_PATH, env = "ZERNEL_SCHEDULER_CONFIG")]
     config: PathBuf,
-
-    /// Dump default configuration and exit
     #[arg(long)]
     dump_config: bool,
-
-    /// Run in userspace-only demo mode (no BPF, 3-step simulation)
     #[arg(long)]
     demo: bool,
+}
+
+#[cfg(feature = "bpf")]
+mod skel {
+    include!(concat!(env!("OUT_DIR"), "/zernel_sched.skel.rs"));
 }
 
 #[tokio::main]
@@ -50,7 +50,6 @@ async fn main() -> Result<()> {
         .init();
 
     let args = Args::parse();
-
     info!("Zernel scheduler v{}", env!("CARGO_PKG_VERSION"));
 
     let config = SchedulerConfig::load(&args.config)?;
@@ -61,17 +60,40 @@ async fn main() -> Result<()> {
         return Ok(());
     }
 
-    // Attempt BPF sched_ext attachment on Linux 6.12+
+    // ── BPF sched_ext attachment ──────────────────────────────
+    // Keep all BPF objects alive for the entire program lifetime.
+    #[cfg(feature = "bpf")]
+    let mut _open_object = std::mem::MaybeUninit::uninit();
+    #[cfg(feature = "bpf")]
+    let _skel_hold;
+    #[cfg(feature = "bpf")]
+    let _link_hold;
+
     #[cfg(feature = "bpf")]
     if !args.demo {
         info!("attempting BPF sched_ext attachment");
-        // Production:
-        // include!(concat!(env!("OUT_DIR"), "/zernel_sched.skel.rs"));
-        // let skel = ZernelSchedSkelBuilder::default().open()?.load()?.attach()?;
-        // let maps = skel.maps();
-        // info!("sched_ext attached — verify: cat /sys/kernel/sched_ext/root/ops");
-        // Enter continuous loop with real BPF maps below.
-        info!("BPF sched_ext scheduler loaded");
+
+        let skel_builder = skel::ZernelSchedSkelBuilder::default();
+        let open_skel = skel_builder.open(&mut _open_object)
+            .expect("failed to open BPF skeleton");
+        let mut loaded = open_skel.load()
+            .expect("failed to load BPF skeleton");
+
+        // Manually attach struct_ops map (the skeleton attach doesn't handle it)
+        let link = loaded.maps.zernel_ops.attach_struct_ops()
+            .expect("failed to attach struct_ops scheduler — is CONFIG_SCHED_CLASS_EXT=y?");
+        info!("sched_ext scheduler ATTACHED — zernel is now the kernel scheduler");
+
+        // Verify
+        if let Ok(state) = std::fs::read_to_string("/sys/kernel/sched_ext/state") {
+            info!(state = state.trim(), "sched_ext kernel state");
+        }
+
+        _link_hold = Some(link);
+        _skel_hold = Some(loaded);
+    } else {
+        _link_hold = None;
+        _skel_hold = None;
     }
 
     #[cfg(not(feature = "bpf"))]
@@ -85,13 +107,6 @@ async fn main() -> Result<()> {
         run_demo(&mut sched);
         return Ok(());
     }
-
-    // ============================================================
-    // Continuous Scheduling Loop
-    //
-    // With BPF: poll ring buffer for task events → phase detect → write decisions
-    // Without BPF: periodic tick, ready for tasks registered via API
-    // ============================================================
 
     let eval_interval = tokio::time::Duration::from_millis(config.general.phase_eval_interval_ms);
     let mut interval = tokio::time::interval(eval_interval);
@@ -109,16 +124,12 @@ async fn main() -> Result<()> {
                     .unwrap_or_default()
                     .as_nanos() as u64;
 
-                // Re-evaluate all tracked tasks
                 let pids: Vec<u32> = sched.task_states().keys().copied().collect();
                 for pid in pids {
                     let _decision = sched.schedule(pid, now_ns);
-                    // BPF mode: write decision to sched_decisions BPF map
-                    // maps.sched_decisions().update(&pid.to_ne_bytes(), &decision_bytes, MapFlags::ANY)?;
                 }
 
-                // Periodic telemetry logging
-                if sched.decisions_made > 0 && sched.decisions_made.is_multiple_of(1000) {
+                if sched.decisions_made > 0 && sched.decisions_made % 1000 == 0 {
                     let telem = telemetry::export_telemetry(&sched);
                     info!(
                         tasks = telem.total_tracked_tasks,
@@ -143,51 +154,31 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-/// Run a 3-step demo simulation of the ML workload lifecycle.
 fn run_demo(sched: &mut scheduler::ZernelScheduler) {
     info!("--- demo: simulating ML workload lifecycle ---");
 
     sched.register_task(1000, true, Some(0));
 
-    sched.update_task(
-        1000,
-        scheduler::TaskUpdate {
-            io_wait_fraction: Some(0.6),
-            gpu_utilization: Some(5),
-            ..Default::default()
-        },
-    );
+    sched.update_task(1000, scheduler::TaskUpdate {
+        io_wait_fraction: Some(0.6), gpu_utilization: Some(5), ..Default::default()
+    });
     let d = sched.schedule(1000, 1_000_000);
     info!(phase = "DataLoading", priority = d.priority, cpu = ?d.preferred_cpu, "decision");
 
-    sched.update_task(
-        1000,
-        scheduler::TaskUpdate {
-            io_wait_fraction: Some(0.01),
-            gpu_utilization: Some(96),
-            cpu_burst_duration_ns: Some(0),
-            ..Default::default()
-        },
-    );
+    sched.update_task(1000, scheduler::TaskUpdate {
+        io_wait_fraction: Some(0.01), gpu_utilization: Some(96),
+        cpu_burst_duration_ns: Some(0), ..Default::default()
+    });
     let d = sched.schedule(1000, 5_000_000);
     info!(phase = "GpuCompute", priority = d.priority, "decision");
 
-    sched.update_task(
-        1000,
-        scheduler::TaskUpdate {
-            gpu_utilization: Some(10),
-            cpu_burst_duration_ns: Some(2_000_000),
-            last_gpu_sync_ns: Some(4_900_000),
-            ..Default::default()
-        },
-    );
+    sched.update_task(1000, scheduler::TaskUpdate {
+        gpu_utilization: Some(10), cpu_burst_duration_ns: Some(2_000_000),
+        last_gpu_sync_ns: Some(4_900_000), ..Default::default()
+    });
     let d = sched.schedule(1000, 8_000_000);
     info!(phase = "OptimizerStep", priority = d.priority, "decision");
 
     let telem = telemetry::export_telemetry(sched);
-    info!(
-        tasks = telem.total_tracked_tasks,
-        decisions = telem.decisions_made,
-        "demo complete"
-    );
+    info!(tasks = telem.total_tracked_tasks, decisions = telem.decisions_made, "demo complete");
 }

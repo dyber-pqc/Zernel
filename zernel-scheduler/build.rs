@@ -1,8 +1,3 @@
-// Copyright (C) 2026 Dyber, Inc. — GPL-2.0
-//
-// Build script for zernel-scheduler.
-// Compiles the sched_ext BPF program when the `bpf` feature is enabled.
-
 fn main() {
     #[cfg(feature = "bpf")]
     {
@@ -16,7 +11,13 @@ fn main() {
 
         SkeletonBuilder::new()
             .source(&src)
-            .clang_args(format!("-I{}", bpf_dir.display()))
+            .clang("clang-16")
+            .clang_args([
+                format!("-I{}", bpf_dir.display()),
+                "-D__BPF__".to_string(),
+                "-target".to_string(),
+                "bpf".to_string(),
+            ])
             .build_and_generate(&out)
             .unwrap_or_else(|e| {
                 panic!("failed to build sched_ext BPF skeleton: {e}");
