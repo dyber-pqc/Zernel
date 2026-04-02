@@ -1,4 +1,22 @@
 /* Copyright (C) 2026 Dyber, Inc. — SPDX-License-Identifier: GPL-2.0 */
+/*
+ * Zernel ML-Aware sched_ext Scheduler (v2)
+ *
+ * Architecture:
+ *   - select_cpu: prefer idle CPUs, dispatch directly to SCX_DSQ_LOCAL
+ *     to preserve cache locality (the #1 performance win over v1)
+ *   - enqueue: only tasks that miss select_cpu go to the shared DSQ,
+ *     with phase-aware time slices for ML workloads
+ *   - dispatch: consume from the shared DSQ as fallback
+ *   - running/stopping: emit lifecycle events to ring buffer for
+ *     userspace phase detection
+ *
+ * Phase-aware time slices:
+ *   0 = DataLoading    — 5 ms  (default, many small I/O bursts)
+ *   1 = GpuCompute     — 20 ms (long slice, minimize preemption)
+ *   2 = NcclCollective — 10 ms (network-sensitive, medium slice)
+ *   3 = OptimizerStep  — 3 ms  (latency-sensitive CPU burst)
+ */
 #include "vmlinux.h"
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
@@ -19,17 +37,25 @@ char _license[] SEC("license") = "GPL";
 
 /* ── kfunc externs ─────────────────────────────────────────── */
 extern s32 scx_bpf_create_dsq(u64 dsq_id, s32 node) __ksym;
+extern s32 scx_bpf_select_cpu_dfl(struct task_struct *p, s32 prev_cpu,
+                                   u64 wake_flags, bool *is_idle) __ksym;
 extern void scx_bpf_dispatch(struct task_struct *p, u64 dsq_id,
                              u64 slice, u64 enq_flags) __ksym;
 extern bool scx_bpf_consume(u64 dsq_id) __ksym;
 
 /*
- * Built-in DSQ IDs from the kernel (include/linux/sched/ext.h)
- * SCX_DSQ_GLOBAL = (1ULL << 63) | 1
- * SCX_DSQ_LOCAL  = (1ULL << 63) | 2
- * We use our own user DSQ to support vtime dispatch in the future.
+ * Built-in DSQ constants from include/linux/sched/ext.h:
+ *   SCX_DSQ_LOCAL  = (1ULL << 63) | 2
+ *   SCX_DSQ_GLOBAL = (1ULL << 63) | 1
  */
+#define SCX_DSQ_LOCAL_VAL  ((1ULL << 63) | 2)
+#define SCX_DSQ_GLOBAL_VAL ((1ULL << 63) | 1)
+
+/* Our shared fallback DSQ (for tasks that miss select_cpu) */
 #define ZERNEL_DSQ  0x5A45524E  /* "ZERN" */
+
+/* Default slice when no phase info is available */
+#define SCX_SLICE_DFL  20000000ULL   /* 20 ms */
 
 /* ── Phase-aware scheduling ──────────────────────────────── */
 struct {
@@ -39,7 +65,7 @@ struct {
     __uint(max_entries, 4096);
 } phase_map SEC(".maps");
 
-/* Per-CPU stats: [0]=enqueue, [1]=dispatch */
+/* Per-CPU stats: [0]=local_dispatch, [1]=global_dispatch, [2]=consume */
 struct {
     __uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
     __uint(key_size, sizeof(u32));
@@ -78,22 +104,58 @@ static inline u64 phase_to_slice(u32 phase)
     }
 }
 
-/* ── struct_ops callbacks ─────────────────────────────────── */
-
-void BPF_STRUCT_OPS(zernel_enqueue, struct task_struct *p, u64 enq_flags)
+static inline u64 get_task_slice(struct task_struct *p)
 {
     u32 pid = p->pid;
     u32 *phase = bpf_map_lookup_elem(&phase_map, &pid);
-    u64 slice = phase ? phase_to_slice(*phase) : 5000000ULL;
-
-    scx_bpf_dispatch(p, ZERNEL_DSQ, slice, enq_flags);
-    stat_inc(0);
+    return phase ? phase_to_slice(*phase) : SCX_SLICE_DFL;
 }
 
+/* ── struct_ops callbacks ─────────────────────────────────── */
+
+/*
+ * select_cpu: Called when a task is waking up. Try to find an idle CPU
+ * (preferring the previous CPU for cache locality) and dispatch directly
+ * to SCX_DSQ_LOCAL, bypassing the global queue entirely.
+ *
+ * This is THE critical optimization — it keeps hot caches warm and avoids
+ * global queue contention.
+ */
+s32 BPF_STRUCT_OPS(zernel_select_cpu, struct task_struct *p, s32 prev_cpu,
+                   u64 wake_flags)
+{
+    bool is_idle = false;
+    s32 cpu;
+
+    cpu = scx_bpf_select_cpu_dfl(p, prev_cpu, wake_flags, &is_idle);
+    if (is_idle) {
+        u64 slice = get_task_slice(p);
+        scx_bpf_dispatch(p, SCX_DSQ_LOCAL_VAL, slice, 0);
+        stat_inc(0);  /* local dispatch */
+    }
+
+    return cpu;
+}
+
+/*
+ * enqueue: Called for tasks that were NOT dispatched in select_cpu
+ * (i.e. no idle CPU was found). Send them to our shared DSQ with
+ * a phase-aware time slice.
+ */
+void BPF_STRUCT_OPS(zernel_enqueue, struct task_struct *p, u64 enq_flags)
+{
+    u64 slice = get_task_slice(p);
+    scx_bpf_dispatch(p, ZERNEL_DSQ, slice, enq_flags);
+    stat_inc(1);  /* global dispatch */
+}
+
+/*
+ * dispatch: Called when a CPU has no work. Pull from our shared DSQ.
+ */
 void BPF_STRUCT_OPS(zernel_dispatch, s32 cpu, struct task_struct *prev)
 {
     scx_bpf_consume(ZERNEL_DSQ);
-    stat_inc(1);
+    stat_inc(2);  /* consume */
 }
 
 void BPF_STRUCT_OPS(zernel_running, struct task_struct *p)
@@ -132,7 +194,6 @@ void BPF_STRUCT_OPS(zernel_stopping, struct task_struct *p, bool runnable)
 
 s32 BPF_STRUCT_OPS_SLEEPABLE(zernel_init)
 {
-    /* Create our custom DSQ — NUMA node -1 = any */
     return scx_bpf_create_dsq(ZERNEL_DSQ, -1);
 }
 
@@ -143,6 +204,7 @@ void BPF_STRUCT_OPS(zernel_exit, struct scx_exit_info *ei)
 /* ── struct_ops registration ─────────────────────────────── */
 SEC(".struct_ops.link")
 struct sched_ext_ops zernel_ops = {
+    .select_cpu  = (void *)zernel_select_cpu,
     .enqueue     = (void *)zernel_enqueue,
     .dispatch    = (void *)zernel_dispatch,
     .running     = (void *)zernel_running,
@@ -151,3 +213,4 @@ struct sched_ext_ops zernel_ops = {
     .exit        = (void *)zernel_exit,
     .name        = "zernel",
 };
+

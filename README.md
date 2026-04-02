@@ -48,26 +48,24 @@ Real benchmarks comparing Zernel's custom `sched_ext` BPF scheduler against stoc
 
 #### Zernel Scheduler vs Stock CFS
 
-| Benchmark | Stock Linux (CFS) | Zernel Scheduler | Improvement |
-|-----------|-------------------|------------------|-------------|
-| **Context Switch Latency** | 9.34 us/switch | **5.47 us/switch** | **41% faster** |
-| **CPU MatMul 1024x1024** | 3.68 ms | **2.89 ms** | **21% faster** |
-| **CPU MatMul 2048x2048** | 23.98 ms | **23.23 ms** | **3% faster** |
-| **CPU MatMul 4096x4096** | 180.44 ms | 203.53 ms | CFS faster (cache effects) |
-| **GPU Training (batch=64)** | 3.71 ms/step | **3.08 ms/step** | **17% faster** |
-| **GPU Training (batch=256)** | 3.72 ms/step | **3.47 ms/step** | **7% faster** |
-| **GPU Training (batch=1024)** | 7.06 ms/step | 7.06 ms/step | Even |
-| **4-proc scheduling** | 60.78 ms wall | **53.16 ms wall** | **13% faster** |
-| **16-proc scheduling** | 128.85 ms wall | 130.35 ms wall | Even |
+Rigorous comparison (10 iterations per metric, mean +/- standard deviation):
+
+| Benchmark | Stock Linux (CFS) | Zernel Scheduler | Result |
+|-----------|-------------------|------------------|--------|
+| **Context Switch Latency** | 14.72 +/- 2.65 us | **5.75 +/- 0.05 us** | **61% faster, 53x lower variance** |
+| **CPU MatMul 2048x2048** | 22.93 +/- 0.78 ms | 22.97 +/- 0.68 ms | Even (within noise) |
+| **GPU Training (batch=256)** | 3.55 +/- 0.09 ms | **3.47 +/- 0.003 ms** | **2.5% faster, 30x lower variance** |
+| **8-proc Multi-Process** | 96.85 +/- 9.56 ms | 128.32 +/- 11.21 ms | CFS 33% faster (see below) |
 
 > **How to reproduce:** Build kernel 6.12+ with `CONFIG_SCHED_CLASS_EXT=y`, then run
 > `zernel-scheduler` (which loads the BPF scheduler into the kernel via `sched_ext`).
 > Verify with `cat /sys/kernel/sched_ext/root/ops` -- it should print `zernel`.
 
 **Key takeaways:**
-- **41% lower context-switch overhead** directly benefits data-loading pipelines that shuttle tensors between CPU and GPU across many threads.
-- **17% faster GPU training steps** at small batch sizes, where CPU-side scheduling latency is a larger fraction of total step time.
-- At large batch sizes (1024+), the GPU dominates wall time and scheduling overhead is negligible -- both schedulers perform identically.
+- **61% lower context-switch overhead with 53x lower variance** -- this directly benefits ML data pipelines that shuttle tensors between CPU and GPU workers. Consistent latency means predictable training step times.
+- **GPU training steps are faster and dramatically more consistent** -- standard deviation drops from 0.09 ms to 0.003 ms. In long training runs (millions of steps), this consistency compounds into meaningful time savings.
+- **CPU-heavy pure-compute work is equivalent** -- the v2 scheduler uses `select_cpu` with local per-CPU dispatch queues (`SCX_DSQ_LOCAL`) to preserve cache locality, matching CFS performance on matrix operations.
+- **Multi-process CPU-only workloads are slower** -- CFS has decades of per-CPU queue + work-stealing optimization. Our global fallback DSQ creates contention when many CPU-bound tasks compete. This is the main area for future improvement (per-CPU DSQs, vtime fairness).
 - Zernel's phase-aware time slices (GPU Compute: 20 ms, NCCL Collective: 10 ms, Data Loading: 5 ms, Optimizer Step: 3 ms) reduce preemption during GPU-bound work and prioritize the CPU during data-loading phases.
 
 ### Verified A100 Benchmark Results
