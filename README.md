@@ -23,6 +23,53 @@ Every ML platform today runs **on top of** a general-purpose operating system th
 
 Zernel is a complete Linux distribution where the CPU scheduler, memory manager, network stack, and observability layer all understand ML workloads natively. Install it on your GPU cluster. Everything you already run still works -- PyTorch, JAX, vLLM, Kubernetes -- but now the OS itself is working for you.
 
+### Bare-Metal sched_ext Benchmark Results
+
+Real benchmarks comparing Zernel's custom `sched_ext` BPF scheduler against stock Linux CFS, measured on dedicated bare-metal hardware:
+
+<details>
+<summary><strong>Test Environment</strong></summary>
+
+| Component | Details |
+|-----------|---------|
+| **Server** | Supermicro bare-metal dedicated server |
+| **CPU** | Intel Xeon E5-2667 v4 @ 3.20 GHz (8 cores / 16 threads, 1 socket) |
+| **Memory** | 64 GB DDR4 ECC |
+| **GPU** | NVIDIA GeForce RTX 4060 (8 GB GDDR6) |
+| **OS** | Debian GNU/Linux (forky/sid) |
+| **Kernel** | Linux 6.12.8 (custom-compiled with `CONFIG_SCHED_CLASS_EXT=y`) |
+| **NVIDIA Driver** | 535.261.03 (DKMS) |
+| **PyTorch** | 2.5.1+cu121 (CUDA 12.1) |
+| **Rust** | 1.94.1 |
+| **Clang** | 16.0.6 (Debian) |
+| **libbpf** | 1.1.2 |
+
+</details>
+
+#### Zernel Scheduler vs Stock CFS
+
+| Benchmark | Stock Linux (CFS) | Zernel Scheduler | Improvement |
+|-----------|-------------------|------------------|-------------|
+| **Context Switch Latency** | 9.34 us/switch | **5.47 us/switch** | **41% faster** |
+| **CPU MatMul 1024x1024** | 3.68 ms | **2.89 ms** | **21% faster** |
+| **CPU MatMul 2048x2048** | 23.98 ms | **23.23 ms** | **3% faster** |
+| **CPU MatMul 4096x4096** | 180.44 ms | 203.53 ms | CFS faster (cache effects) |
+| **GPU Training (batch=64)** | 3.71 ms/step | **3.08 ms/step** | **17% faster** |
+| **GPU Training (batch=256)** | 3.72 ms/step | **3.47 ms/step** | **7% faster** |
+| **GPU Training (batch=1024)** | 7.06 ms/step | 7.06 ms/step | Even |
+| **4-proc scheduling** | 60.78 ms wall | **53.16 ms wall** | **13% faster** |
+| **16-proc scheduling** | 128.85 ms wall | 130.35 ms wall | Even |
+
+> **How to reproduce:** Build kernel 6.12+ with `CONFIG_SCHED_CLASS_EXT=y`, then run
+> `zernel-scheduler` (which loads the BPF scheduler into the kernel via `sched_ext`).
+> Verify with `cat /sys/kernel/sched_ext/root/ops` -- it should print `zernel`.
+
+**Key takeaways:**
+- **41% lower context-switch overhead** directly benefits data-loading pipelines that shuttle tensors between CPU and GPU across many threads.
+- **17% faster GPU training steps** at small batch sizes, where CPU-side scheduling latency is a larger fraction of total step time.
+- At large batch sizes (1024+), the GPU dominates wall time and scheduling overhead is negligible -- both schedulers perform identically.
+- Zernel's phase-aware time slices (GPU Compute: 20 ms, NCCL Collective: 10 ms, Data Loading: 5 ms, Optimizer Step: 3 ms) reduce preemption during GPU-bound work and prioritize the CPU during data-loading phases.
+
 ### Verified A100 Benchmark Results
 
 Tested on **NVIDIA A100-SXM4-80GB** with PyTorch 2.10 + CUDA 12.8:
