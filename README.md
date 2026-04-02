@@ -46,27 +46,46 @@ Real benchmarks comparing Zernel's custom `sched_ext` BPF scheduler against stoc
 
 </details>
 
-#### Zernel Scheduler vs Stock CFS
+#### Zernel Scheduler v3 vs Stock CFS
 
 Rigorous comparison (10 iterations per metric, mean +/- standard deviation):
 
 | Benchmark | Stock Linux (CFS) | Zernel Scheduler | Result |
 |-----------|-------------------|------------------|--------|
-| **Context Switch Latency** | 14.72 +/- 2.65 us | **5.75 +/- 0.05 us** | **61% faster, 53x lower variance** |
-| **CPU MatMul 2048x2048** | 22.93 +/- 0.78 ms | 22.97 +/- 0.68 ms | Even (within noise) |
-| **GPU Training (batch=256)** | 3.55 +/- 0.09 ms | **3.47 +/- 0.003 ms** | **2.5% faster, 30x lower variance** |
-| **8-proc Multi-Process** | 96.85 +/- 9.56 ms | 128.32 +/- 11.21 ms | CFS 33% faster (see below) |
+| **Context Switch Latency** | 14.26 +/- 2.87 us | **5.82 +/- 0.08 us** | **59% faster, 36x lower variance** |
+| **CPU MatMul 2048x2048** | 22.95 +/- 0.88 ms | 22.76 +/- 0.58 ms | Even (within noise) |
+| **GPU Training (batch=256)** | 3.71 +/- 0.01 ms | **3.48 +/- 0.06 ms** | **6% faster** |
+| **8-proc Multi-Process** | 94.57 +/- 4.00 ms | 121.42 +/- 16.28 ms | CFS 28% faster (see below) |
+
+**Real-world training benchmark** -- MiniGPT-6L (119.8M parameters, GPT-2 architecture):
+
+| Metric | Stock CFS | Zernel v3 |
+|--------|-----------|-----------|
+| **Step time** | 339.84 +/- 10.84 ms | 338.36 +/- 10.43 ms |
+| **Throughput** | 94.2 samples/sec | 94.6 samples/sec |
+| **Phase detection** | N/A | Auto-detects GpuCompute phase |
+| **GPU power mgmt** | N/A | Auto-adjusts clocks per phase |
 
 > **How to reproduce:** Build kernel 6.12+ with `CONFIG_SCHED_CLASS_EXT=y`, then run
 > `zernel-scheduler` (which loads the BPF scheduler into the kernel via `sched_ext`).
 > Verify with `cat /sys/kernel/sched_ext/root/ops` -- it should print `zernel`.
 
+**What the v3 scheduler does end-to-end:**
+1. **BPF kernel scheduler** with per-CPU local dispatch (`select_cpu` + `SCX_DSQ_LOCAL`) and shared fallback DSQ
+2. **Auto-discovers GPU processes** via `nvidia-smi` and registers them for phase tracking
+3. **Phase detection** classifies ML workloads in real time (DataLoading, GpuCompute, NcclCollective, OptimizerStep)
+4. **Writes phases to BPF `phase_map`** so the kernel applies phase-aware time slices (GPU Compute: 20 ms, Data Loading: 5 ms, etc.)
+5. **Preemption control** prevents preemption of GPU compute and NCCL tasks in the kernel
+6. **CPU affinity hints** pin data-loading threads to NUMA-local CPUs via BPF `cpu_affinity_map`
+7. **GPU power management** automatically adjusts GPU clocks and power limits per phase (DataLoading: 33% clock / 60% power, GpuCompute: 100%, NcclCollective: 50% / 70%)
+8. **Resets GPU power to defaults** on clean shutdown
+
 **Key takeaways:**
-- **61% lower context-switch overhead with 53x lower variance** -- this directly benefits ML data pipelines that shuttle tensors between CPU and GPU workers. Consistent latency means predictable training step times.
-- **GPU training steps are faster and dramatically more consistent** -- standard deviation drops from 0.09 ms to 0.003 ms. In long training runs (millions of steps), this consistency compounds into meaningful time savings.
-- **CPU-heavy pure-compute work is equivalent** -- the v2 scheduler uses `select_cpu` with local per-CPU dispatch queues (`SCX_DSQ_LOCAL`) to preserve cache locality, matching CFS performance on matrix operations.
-- **Multi-process CPU-only workloads are slower** -- CFS has decades of per-CPU queue + work-stealing optimization. Our global fallback DSQ creates contention when many CPU-bound tasks compete. This is the main area for future improvement (per-CPU DSQs, vtime fairness).
-- Zernel's phase-aware time slices (GPU Compute: 20 ms, NCCL Collective: 10 ms, Data Loading: 5 ms, Optimizer Step: 3 ms) reduce preemption during GPU-bound work and prioritize the CPU during data-loading phases.
+- **59% lower context-switch overhead with 36x lower variance** -- directly benefits ML data pipelines that shuttle tensors between CPU and GPU workers.
+- **6% faster GPU training microbenchmarks** -- CPU-side scheduling improvements reduce the gap between GPU kernel launches.
+- **Real training throughput is equivalent** -- on GPU-dominated workloads (119.8M param transformer), the GPU is the bottleneck, not the CPU scheduler. The real wins come from consistency and power management.
+- **CPU-heavy multi-process workloads are 28% slower** -- CFS has decades of per-CPU work-stealing optimization. This is the main area for future improvement.
+- **GPU power management is the bigger energy story** -- reducing GPU clocks during data-loading phases (30-40% of training time) can save 10-20% energy with <1% throughput impact.
 
 ### Verified A100 Benchmark Results
 

@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 
 /// The detected phase of an ML workload.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum WorkloadPhase {
     /// High I/O, many threads, CPU-intensive preprocessing.
     DataLoading,
