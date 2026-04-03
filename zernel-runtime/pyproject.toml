@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "zernel-runtime"
+version = "0.1.0"
+description = "Zernel ML Runtime — automatic training optimization for PyTorch"
+requires-python = ">=3.9"
+license = {text = "Proprietary"}
+authors = [{name = "Dyber, Inc.", email = "dev@dyber.org"}]
+
+[project.scripts]
+zernel-run = "zernel_runtime.cli:main"
