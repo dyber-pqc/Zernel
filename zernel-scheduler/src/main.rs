@@ -131,26 +131,54 @@ fn get_gpu_max_clocks() -> Option<(u32, u32, u32)> {
 
 /// Apply GPU power profile for a phase.
 fn apply_gpu_power_profile(phase: &task_state::WorkloadPhase, max_clocks: (u32, u32, u32)) {
-    let (max_g, max_m, max_p) = max_clocks;
+    let (max_g, _max_m, max_p) = max_clocks;
     let (target_g, target_p) = match phase {
-        task_state::WorkloadPhase::DataLoading => (max_g / 3, (max_p as f32 * 0.6) as u32),
+        task_state::WorkloadPhase::DataLoading => (max_g / 3, (max_p as f32 * 0.78) as u32),
         task_state::WorkloadPhase::GpuCompute => (max_g, max_p),
-        task_state::WorkloadPhase::NcclCollective => (max_g / 2, (max_p as f32 * 0.7) as u32),
+        task_state::WorkloadPhase::NcclCollective => (max_g / 2, (max_p as f32 * 0.85) as u32),
         task_state::WorkloadPhase::OptimizerStep => (max_g, max_p),
         task_state::WorkloadPhase::Unknown => return,
     };
+
+    // Lock GPU clocks (nvidia-smi -lgc works on consumer cards, -ac does not)
+    let _ = std::process::Command::new("nvidia-smi")
+        .args(["-i", "0", "-lgc", &target_g.to_string()])
+        .output();
 
     // Set power limit
     let _ = std::process::Command::new("nvidia-smi")
         .args(["-i", "0", "-pl", &target_p.to_string()])
         .output();
 
-    // Set application clocks
-    let _ = std::process::Command::new("nvidia-smi")
-        .args(["-i", "0", "-ac", &format!("{},{}", max_m, target_g)])
-        .output();
-
     debug!(phase = %phase, gpu_clock = target_g, power_limit = target_p, "GPU power profile applied");
+}
+
+/// Set CPU frequency for all cores (phase-aware power management).
+/// During GPU compute phases, CPU is mostly idle — drop to minimum frequency.
+/// During data loading phases, CPU needs full speed for preprocessing.
+fn apply_cpu_power_profile(phase: &task_state::WorkloadPhase, num_cpus: usize) {
+    let freq_khz = match phase {
+        task_state::WorkloadPhase::DataLoading => 3600000,    // full speed for I/O + preprocessing
+        task_state::WorkloadPhase::GpuCompute => 1200000,     // minimum — CPU idle during GPU work
+        task_state::WorkloadPhase::NcclCollective => 1200000,  // minimum — waiting on network
+        task_state::WorkloadPhase::OptimizerStep => 3600000,   // full speed for CPU burst
+        task_state::WorkloadPhase::Unknown => 3600000,         // default to full
+    };
+
+    for i in 0..num_cpus {
+        let path = format!("/sys/devices/system/cpu/cpu{}/cpufreq/scaling_max_freq", i);
+        let _ = std::fs::write(&path, freq_khz.to_string());
+    }
+
+    debug!(phase = %phase, freq_mhz = freq_khz / 1000, "CPU frequency set");
+}
+
+/// Reset CPU frequency to maximum.
+fn reset_cpu_frequency(num_cpus: usize) {
+    for i in 0..num_cpus {
+        let path = format!("/sys/devices/system/cpu/cpu{}/cpufreq/scaling_max_freq", i);
+        let _ = std::fs::write(&path, "3600000");
+    }
 }
 
 /// Check if a process is alive.
@@ -344,9 +372,11 @@ async fn main() -> Result<()> {
 
                     if dominant != current_power_phase && dominant != task_state::WorkloadPhase::Unknown {
                         apply_gpu_power_profile(&dominant, max_clocks);
+                        let num_cpus = sched.numa_topology().total_cpus();
+                        apply_cpu_power_profile(&dominant, num_cpus);
                         info!(
                             from = %current_power_phase, to = %dominant,
-                            "GPU power phase transition"
+                            "power phase transition (GPU + CPU)"
                         );
                         current_power_phase = dominant;
                     }
@@ -375,13 +405,15 @@ async fn main() -> Result<()> {
                     "shutting down — final telemetry"
                 );
 
-                // Reset GPU power on exit
+                // Reset GPU + CPU power on exit
                 if gpu_max_clocks.is_some() {
                     let _ = std::process::Command::new("nvidia-smi")
-                        .args(["-i", "0", "-rac"]).output();
+                        .args(["-i", "0", "-rgc"]).output();
                     let _ = std::process::Command::new("nvidia-smi")
-                        .args(["-i", "0", "-rpl"]).output();
-                    info!("GPU power reset to defaults");
+                        .args(["-i", "0", "-pl", "115"]).output();
+                    let num_cpus = sched.numa_topology().total_cpus();
+                    reset_cpu_frequency(num_cpus);
+                    info!("GPU + CPU power reset to defaults");
                 }
                 break;
             }
