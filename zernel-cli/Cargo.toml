@@ -22,7 +22,7 @@ ratatui = "0.28"
 crossterm = "0.28"
 rusqlite = { version = "0.31", features = ["bundled"] }
 nom = "7"
-reqwest = { version = "0.12", features = ["json"] }
+reqwest = { version = "0.13", features = ["json"] }
 tokio-tungstenite = "0.26"
 chrono = { version = "0.4", features = ["serde"] }
 regex = "1"
