@@ -19,7 +19,7 @@ tracing.workspace = true
 tracing-subscriber.workspace = true
 clap = { version = "4", features = ["derive"] }
 ratatui = "0.28"
-crossterm = "0.28"
+crossterm = "0.29"
 rusqlite = { version = "0.31", features = ["bundled"] }
 nom = "7"
 reqwest = { version = "0.12", features = ["json"] }
