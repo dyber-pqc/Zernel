@@ -23,7 +23,7 @@ libbpf-rs = { version = "0.24", optional = true }
 hyper = { version = "1", features = ["server", "http1"] }
 hyper-util = { version = "0.1", features = ["tokio"] }
 http-body-util = "0.1"
-tokio-tungstenite = "0.26"
+tokio-tungstenite = "0.29"
 futures-util = "0.3"
 toml = "0.8"
 clap = { version = "4", features = ["derive", "env"] }
