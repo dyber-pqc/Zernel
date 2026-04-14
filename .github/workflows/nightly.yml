@@ -30,7 +30,7 @@ jobs:
         run: cargo clippy --workspace 2>&1 || true
 
       - name: Upload nightly binaries
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: zernel-nightly-${{ github.sha }}
           path: |
